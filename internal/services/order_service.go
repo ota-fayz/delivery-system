@@ -14,14 +14,16 @@ import (
 
 // OrderService представляет сервис для работы с заказами
 type OrderService struct {
-	db  *database.DB
-	log *logger.Logger
+	db  			*database.DB
+	pricingService 	*DeliveryPricingService
+	log 			*logger.Logger
 }
 
 // NewOrderService создает новый экземпляр сервиса заказов
-func NewOrderService(db *database.DB, log *logger.Logger) *OrderService {
+func NewOrderService(db *database.DB, pricingService *DeliveryPricingService, log *logger.Logger) *OrderService {
 	return &OrderService{
 		db:  db,
+		pricingService: pricingService,
 		log: log,
 	}
 }
@@ -40,13 +42,22 @@ func (s *OrderService) CreateOrder(req *models.CreateOrderRequest) (*models.Orde
 		totalAmount += item.Price * float64(item.Quantity)
 	}
 
+	// Расчет стоимости доставки
+	deliveryCost, err := s.pricingService.CalculateDeliveryCost(req.PickupAddress, req.DeliveryAddress)
+	if err != nil {
+		s.log.WithError(err).Warn("Failed to calculate delivery cost, using default value")
+		deliveryCost = 100.0
+	}
+
 	// Создание заказа
 	orderID := uuid.New()
 	order := &models.Order{
 		ID:              orderID,
 		CustomerName:    req.CustomerName,
 		CustomerPhone:   req.CustomerPhone,
+		PickupAddress:   req.PickupAddress,
 		DeliveryAddress: req.DeliveryAddress,
+		DeliveryCost:    deliveryCost,
 		TotalAmount:     totalAmount,
 		Status:          models.OrderStatusCreated,
 		CreatedAt:       time.Now(),
@@ -54,11 +65,12 @@ func (s *OrderService) CreateOrder(req *models.CreateOrderRequest) (*models.Orde
 	}
 
 	query := `
-		INSERT INTO orders (id, customer_name, customer_phone, delivery_address, total_amount, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO orders (id, customer_name, customer_phone, pickup_address, delivery_address, 
+		total_amount, delivery_cost, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	_, err = tx.Exec(query, order.ID, order.CustomerName, order.CustomerPhone,
-		order.DeliveryAddress, order.TotalAmount, order.Status, order.CreatedAt, order.UpdatedAt)
+		order.PickupAddress, order.DeliveryAddress, order.TotalAmount, order.DeliveryCost, order.Status, order.CreatedAt, order.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
@@ -102,15 +114,15 @@ func (s *OrderService) GetOrder(orderID uuid.UUID) (*models.Order, error) {
 	order := &models.Order{}
 
 	query := `
-		SELECT id, customer_name, customer_phone, delivery_address, total_amount, 
-		       status, courier_id, created_at, updated_at, delivered_at
+		SELECT id, customer_name, customer_phone, pickup_address, delivery_address, 
+		total_amount, delivery_cost, status, courier_id, created_at, updated_at, delivered_at
 		FROM orders 
 		WHERE id = $1
 	`
 
 	err := s.db.QueryRow(query, orderID).Scan(
-		&order.ID, &order.CustomerName, &order.CustomerPhone, &order.DeliveryAddress,
-		&order.TotalAmount, &order.Status, &order.CourierID, &order.CreatedAt,
+		&order.ID, &order.CustomerName, &order.CustomerPhone, &order.PickupAddress, &order.DeliveryAddress,
+		&order.TotalAmount, &order.DeliveryCost, &order.Status, &order.CourierID, &order.CreatedAt,
 		&order.UpdatedAt, &order.DeliveredAt,
 	)
 	if err != nil {
@@ -189,8 +201,8 @@ func (s *OrderService) UpdateOrderStatus(orderID uuid.UUID, req *models.UpdateOr
 // GetOrders получает список заказов с фильтрацией
 func (s *OrderService) GetOrders(status *models.OrderStatus, courierID *uuid.UUID, limit, offset int) ([]*models.Order, error) {
 	query := `
-		SELECT id, customer_name, customer_phone, delivery_address, total_amount, 
-		       status, courier_id, created_at, updated_at, delivered_at
+		SELECT id, customer_name, customer_phone, pickup_address, delivery_address, total_amount, 
+			delivery_cost, status, courier_id, created_at, updated_at, delivered_at
 		FROM orders 
 		WHERE 1=1
 	`
@@ -232,7 +244,7 @@ func (s *OrderService) GetOrders(status *models.OrderStatus, courierID *uuid.UUI
 	for rows.Next() {
 		order := &models.Order{}
 		if err := rows.Scan(&order.ID, &order.CustomerName, &order.CustomerPhone,
-			&order.DeliveryAddress, &order.TotalAmount, &order.Status,
+			&order.PickupAddress, &order.DeliveryAddress, &order.TotalAmount, &order.DeliveryCost, &order.Status,
 			&order.CourierID, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt); err != nil {
 			return nil, fmt.Errorf("failed to scan order: %w", err)
 		}
