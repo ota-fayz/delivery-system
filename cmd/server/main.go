@@ -15,6 +15,7 @@ import (
 	"delivery-system/internal/handlers"
 	"delivery-system/internal/kafka"
 	"delivery-system/internal/logger"
+	"delivery-system/internal/middleware"
 	"delivery-system/internal/models"
 	"delivery-system/internal/redis"
 	"delivery-system/internal/services"
@@ -59,11 +60,16 @@ func main() {
 	// Инициализация сервисов
 	orderService := services.NewOrderService(db, log)
 	courierService := services.NewCourierService(db, log)
+	rateLimiterService := services.NewRateLimiterService(redisClient, &cfg.RateLimit, log)
 
 	// Инициализация handlers
 	orderHandler := handlers.NewOrderHandler(orderService, producer, redisClient, log)
 	courierHandler := handlers.NewCourierHandler(courierService, producer, redisClient, log)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
+	rateLimitHandler := handlers.NewRateLimitHandler(rateLimiterService, log)
+
+	// Инициализация rate limit middleware
+	rateLimitMiddleware := middleware.RateLimitMiddleware(rateLimiterService, log)
 
 	// Регистрация обработчиков событий Kafka
 	registerEventHandlers(consumer, log)
@@ -74,7 +80,7 @@ func main() {
 	}
 
 	// Настройка HTTP роутера
-	mux := setupRoutes(orderHandler, courierHandler, healthHandler)
+	mux := setupRoutes(orderHandler, courierHandler, healthHandler, rateLimitHandler, rateLimitMiddleware)
 
 	// Создание HTTP сервера
 	server := &http.Server{
@@ -111,7 +117,13 @@ func main() {
 }
 
 // setupRoutes настраивает маршруты HTTP сервера
-func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
+func setupRoutes(
+    orderHandler *handlers.OrderHandler, 
+    courierHandler *handlers.CourierHandler, 
+    healthHandler *handlers.HealthHandler, 
+    rateLimitHandler *handlers.RateLimitHandler,
+    rateLimitMiddleware func(http.Handler) http.Handler,
+) http.Handler {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
@@ -120,13 +132,16 @@ func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.C
 	mux.HandleFunc("/health/liveness", corsMiddleware(healthHandler.Liveness))
 
 	// Order endpoints
-	mux.HandleFunc("/api/orders", corsMiddleware(handleOrdersRoute(orderHandler)))
-	mux.HandleFunc("/api/orders/", corsMiddleware(handleOrderRoute(orderHandler)))
+	mux.Handle("/api/orders", rateLimitMiddleware(corsMiddleware(handleOrdersRoute(orderHandler))))
+	mux.Handle("/api/orders/", rateLimitMiddleware(corsMiddleware(handleOrderRoute(orderHandler))))
 
 	// Courier endpoints
-	mux.HandleFunc("/api/couriers", corsMiddleware(handleCouriersRoute(courierHandler)))
-	mux.HandleFunc("/api/couriers/", corsMiddleware(handleCourierRoute(courierHandler)))
-	mux.HandleFunc("/api/couriers/available", corsMiddleware(courierHandler.GetAvailableCouriers))
+	mux.Handle("/api/couriers", rateLimitMiddleware(corsMiddleware(handleCouriersRoute(courierHandler))))
+	mux.Handle("/api/couriers/", rateLimitMiddleware(corsMiddleware(handleCourierRoute(courierHandler))))
+	mux.Handle("/api/couriers/available", rateLimitMiddleware(corsMiddleware(courierHandler.GetAvailableCouriers)))
+
+	// Rate limit status endpoint
+	mux.HandleFunc("/api/rate-limit/status", corsMiddleware(rateLimitHandler.GetStatus))
 
 	return mux
 }

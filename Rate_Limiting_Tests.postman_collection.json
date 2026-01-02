@@ -1,0 +1,125 @@
+{
+	"info": {
+		"_postman_id": "rate-limit-test-001",
+		"name": "Rate Limiting Tests",
+		"description": "Тестирование Rate Limiting системы доставки",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Проверка статуса лимита",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/rate-limit/status",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "rate-limit", "status"]
+				},
+				"description": "Проверяет текущий статус rate limit для вашего IP. Remaining должен быть 100 в начале."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Создать заказ (проверка заголовков)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"customer_name\": \"Тестовый клиент\",\n  \"customer_phone\": \"+7(999)123-45-67\",\n  \"pickup_address\": \"Москва, ул. Тверская, д. 1\",\n  \"delivery_address\": \"Москва, ул. Арбат, д. 10, кв. 5\",\n  \"items\": [\n    {\n      \"name\": \"Тестовый товар\",\n      \"quantity\": 1,\n      \"price\": 100.00\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/orders",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders"]
+				},
+				"description": "Создает заказ. ВАЖНО: Проверь заголовки X-RateLimit-* в ответе!"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Health Check (без rate limit)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/health",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["health"]
+				},
+				"description": "Health endpoint должен работать ВСЕГДА, даже при бане!"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Получить список заказов",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/orders",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders"]
+				},
+				"description": "Получает список заказов. Тоже расходует лимит!"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Создать курьера",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Тестовый курьер\",\n  \"phone\": \"+7(999)987-65-43\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/couriers",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "couriers"]
+				},
+				"description": "Создает курьера. Проверь что remaining уменьшается."
+			},
+			"response": []
+		},
+		{
+			"name": "6. Получить список курьеров",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/couriers",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "couriers"]
+				},
+				"description": "Получает список курьеров"
+			},
+			"response": []
+		}
+	]
+}
+
