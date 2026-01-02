@@ -8,11 +8,12 @@ import (
 
 // Config представляет конфигурацию приложения
 type Config struct {
-	Server   ServerConfig   `json:"server"`
-	Database DatabaseConfig `json:"database"`
-	Redis    RedisConfig    `json:"redis"`
-	Kafka    KafkaConfig    `json:"kafka"`
-	Logger   LoggerConfig   `json:"logger"`
+	Server   	ServerConfig   		`json:"server"`
+	Database 	DatabaseConfig 		`json:"database"`
+	Redis    	RedisConfig    		`json:"redis"`
+	Kafka    	KafkaConfig    		`json:"kafka"`
+	Logger   	LoggerConfig   		`json:"logger"`
+	RateLimit 	RateLimitConfig 	`json:"rate_limit"`
 }
 
 // ServerConfig представляет конфигурацию HTTP сервера
@@ -62,6 +63,14 @@ type LoggerConfig struct {
 	File   string `json:"file"`
 }
 
+// RateLimitConfig представляет конфигурацию rate limiting
+type RateLimitConfig struct {
+	Enabled		bool	`json:"enabled"`
+	DefaultRPM	int		`json:"default_rpm"`
+	VIPRPM		int		`json:"vip_rpm"`
+	BanDuration	int		`json:"ban_duration"`
+}
+
 // Load загружает конфигурацию из переменных окружения
 func Load() *Config {
 	return &Config{
@@ -98,6 +107,12 @@ func Load() *Config {
 			Level:  getEnv("LOG_LEVEL", "info"),
 			Format: getEnv("LOG_FORMAT", "json"),
 			File:   getEnv("LOG_FILE", ""),
+		},
+		RateLimit: RateLimitConfig{
+			Enabled:     getEnv("RATE_LIMIT_ENABLED", "true") == "true",
+			DefaultRPM:  getEnvAsInt("RATE_LIMIT_DEFAULT_RPM", 100),
+			VIPRPM:      getEnvAsInt("RATE_LIMIT_VIP_RPM", 1000),
+			BanDuration: getEnvAsInt("RATE_LIMIT_BAN_DURATION", 300),
 		},
 	}
 }

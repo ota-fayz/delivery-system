@@ -162,3 +162,9 @@ const (
 	KeyPrefixCourier = "courier"
 	KeyPrefixStats   = "stats"
 )
+
+// GetClient возвращает внутренний Redis клиент для прямого доступа
+// Используется для специализированных операций (rate limiting, Lua scripts, counters)
+func (c *Client) GetClient() *redis.Client {
+	return c.client
+}
