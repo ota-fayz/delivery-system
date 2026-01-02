@@ -8,12 +8,13 @@ import (
 
 // Config представляет конфигурацию приложения
 type Config struct {
-	Server   	ServerConfig   		`json:"server"`
-	Database 	DatabaseConfig 		`json:"database"`
-	Redis    	RedisConfig    		`json:"redis"`
-	Kafka    	KafkaConfig    		`json:"kafka"`
-	Logger   	LoggerConfig   		`json:"logger"`
-	RateLimit 	RateLimitConfig 	`json:"rate_limit"`
+	Server   	        ServerConfig   		    `json:"server"`
+	Database 	        DatabaseConfig 		    `json:"database"`
+	Redis    	        RedisConfig    		    `json:"redis"`
+	Kafka    	        KafkaConfig    		    `json:"kafka"`
+	Logger   	        LoggerConfig   		    `json:"logger"`
+  DeliveryPricing		DeliveryPricingConfig	`json:"delivery_pricing"`
+	RateLimit 	      RateLimitConfig 	    `json:"rate_limit"`
 }
 
 // ServerConfig представляет конфигурацию HTTP сервера
@@ -65,10 +66,18 @@ type LoggerConfig struct {
 
 // RateLimitConfig представляет конфигурацию rate limiting
 type RateLimitConfig struct {
-	Enabled		bool	`json:"enabled"`
+	Enabled		  bool	`json:"enabled"`
 	DefaultRPM	int		`json:"default_rpm"`
-	VIPRPM		int		`json:"vip_rpm"`
+	VIPRPM		  int		`json:"vip_rpm"`
 	BanDuration	int		`json:"ban_duration"`
+}
+
+// DeliveryPricingConfig представляет конфигурацию тарифов доставки
+type DeliveryPricingConfig struct {
+	BasePrice  float64 `json:"base_price"`
+	PricePerKm float64 `json:"price_per_km"`
+	MinPrice   float64 `json:"min_price"`
+	MaxPrice   float64 `json:"max_price"`
 }
 
 // Load загружает конфигурацию из переменных окружения
@@ -113,6 +122,12 @@ func Load() *Config {
 			DefaultRPM:  getEnvAsInt("RATE_LIMIT_DEFAULT_RPM", 100),
 			VIPRPM:      getEnvAsInt("RATE_LIMIT_VIP_RPM", 1000),
 			BanDuration: getEnvAsInt("RATE_LIMIT_BAN_DURATION", 300),
+    },
+		DeliveryPricing: DeliveryPricingConfig{
+			BasePrice:  getEnvAsFloat("DELIVERY_BASE_PRICE", 100.0),
+			PricePerKm: getEnvAsFloat("DELIVERY_PRICE_PER_KM", 15.0),
+			MinPrice:   getEnvAsFloat("DELIVERY_MIN_PRICE", 50.0),
+			MaxPrice:   getEnvAsFloat("DELIVERY_MAX_PRICE", 1000.0),
 		},
 	}
 }
@@ -129,6 +144,15 @@ func getEnv(key, defaultValue string) string {
 func getEnvAsInt(key string, defaultValue int) int {
 	valueStr := getEnv(key, "")
 	if value, err := strconv.Atoi(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsFloat получает значение переменной окружения как float64 с значением по умолчанию
+func getEnvAsFloat(key string, defaultValue float64) float64 {
+	valueStr := getEnv(key, "")
+	if value, err := strconv.ParseFloat(valueStr, 64); err == nil {
 		return value
 	}
 	return defaultValue
