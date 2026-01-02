@@ -57,7 +57,8 @@ func main() {
 	defer consumer.Stop()
 
 	// Инициализация сервисов
-	orderService := services.NewOrderService(db, log)
+	pricingService := services.NewDeliveryPricingService(&cfg.DeliveryPricing, log)
+	orderService := services.NewOrderService(db, pricingService, log)
 	courierService := services.NewCourierService(db, log)
 
 	// Инициализация handlers

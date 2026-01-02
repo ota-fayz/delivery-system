@@ -24,9 +24,11 @@ type Order struct {
 	ID              uuid.UUID   `json:"id" db:"id"`
 	CustomerName    string      `json:"customer_name" db:"customer_name"`
 	CustomerPhone   string      `json:"customer_phone" db:"customer_phone"`
+	PickupAddress   string  	`json:"pickup_address" db:"pickup_address"`
 	DeliveryAddress string      `json:"delivery_address" db:"delivery_address"`
 	Items           []OrderItem `json:"items"`
 	TotalAmount     float64     `json:"total_amount" db:"total_amount"`
+	DeliveryCost    float64 	`json:"delivery_cost" db:"delivery_cost"`
 	Status          OrderStatus `json:"status" db:"status"`
 	CourierID       *uuid.UUID  `json:"courier_id,omitempty" db:"courier_id"`
 	CreatedAt       time.Time   `json:"created_at" db:"created_at"`
@@ -47,6 +49,7 @@ type OrderItem struct {
 type CreateOrderRequest struct {
 	CustomerName    string                   `json:"customer_name"`
 	CustomerPhone   string                   `json:"customer_phone"`
+	PickupAddress   string                   `json:"pickup_address"`
 	DeliveryAddress string                   `json:"delivery_address"`
 	Items           []CreateOrderItemRequest `json:"items"`
 }
