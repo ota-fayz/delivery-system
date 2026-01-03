@@ -10,7 +10,6 @@ import (
 	"delivery-system/internal/kafka"
 	"delivery-system/internal/logger"
 	"delivery-system/internal/models"
-	"delivery-system/internal/redis"
 	"delivery-system/internal/services"
 
 	"github.com/google/uuid"
@@ -20,16 +19,16 @@ import (
 type OrderHandler struct {
 	orderService *services.OrderService
 	producer     *kafka.Producer
-	redisClient  *redis.Client
+	cacheService *services.CacheService
 	log          *logger.Logger
 }
 
 // NewOrderHandler создает новый обработчик заказов
-func NewOrderHandler(orderService *services.OrderService, producer *kafka.Producer, redisClient *redis.Client, log *logger.Logger) *OrderHandler {
+func NewOrderHandler(orderService *services.OrderService, producer *kafka.Producer, cacheService *services.CacheService, log *logger.Logger) *OrderHandler {
 	return &OrderHandler{
 		orderService: orderService,
 		producer:     producer,
-		redisClient:  redisClient,
+		cacheService: cacheService,
 		log:          log,
 	}
 }
@@ -68,10 +67,9 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Кеширование заказа в Redis
-	cacheKey := redis.GenerateKey(redis.KeyPrefixOrder, order.ID.String())
-	if err := h.redisClient.Set(r.Context(), cacheKey, order, defaultCacheTTL); err != nil {
+	cacheKey := services.BuildKey("order", order.ID.String())
+	if err := h.cacheService.Set(r.Context(), cacheKey, order, h.cacheService.GetDefaultTTL()); err != nil {
 		h.log.WithError(err).Error("Failed to cache order")
-		// Не возвращаем ошибку клиенту
 	}
 
 	h.log.WithField("order_id", order.ID).Info("Order created successfully")
@@ -92,9 +90,10 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Попытка получить из кеша
-	cacheKey := redis.GenerateKey(redis.KeyPrefixOrder, orderID.String())
+	cacheKey := services.BuildKey("order", orderID.String())
 	var order models.Order
-	if err := h.redisClient.Get(r.Context(), cacheKey, &order); err == nil {
+	found, _ := h.cacheService.Get(r.Context(), cacheKey, &order)
+	if found {
 		h.log.WithField("order_id", orderID).Debug("Order retrieved from cache")
 		writeJSONResponse(w, http.StatusOK, &order)
 		return
@@ -113,7 +112,7 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Кеширование заказа
-	if err := h.redisClient.Set(r.Context(), cacheKey, orderPtr, defaultCacheTTL); err != nil {
+	if err := h.cacheService.Set(r.Context(), cacheKey, orderPtr, h.cacheService.GetDefaultTTL()); err != nil {
 		h.log.WithError(err).Error("Failed to cache order")
 	}
 
@@ -169,8 +168,8 @@ func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Инвалидация кеша
-	cacheKey := redis.GenerateKey(redis.KeyPrefixOrder, orderID.String())
-	if err := h.redisClient.Delete(r.Context(), cacheKey); err != nil {
+	cacheKey := services.BuildKey("order", orderID.String())
+	if err := h.cacheService.Delete(r.Context(), cacheKey); err != nil {
 		h.log.WithError(err).Error("Failed to invalidate order cache")
 	}
 

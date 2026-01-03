@@ -59,10 +59,21 @@ func main() {
 	// Инициализация сервисов
 	orderService := services.NewOrderService(db, log)
 	courierService := services.NewCourierService(db, log)
+	cacheService := services.NewCacheService(redisClient, &cfg.Cache, log)
+
+	// Cache warming: прогрев кеша популярными данными
+	ctx := context.Background()
+	warmupFuncs := map[string]func() (interface{}, error){
+		"couriers:available": func() (interface{}, error) {
+			return courierService.GetAvailableCouriers()
+		},
+	}
+	cacheService.WarmupCache(ctx, warmupFuncs)
 
 	// Инициализация handlers
-	orderHandler := handlers.NewOrderHandler(orderService, producer, redisClient, log)
-	courierHandler := handlers.NewCourierHandler(courierService, producer, redisClient, log)
+	orderHandler := handlers.NewOrderHandler(orderService, producer, cacheService, log)
+	courierHandler := handlers.NewCourierHandler(courierService, producer, cacheService, log)
+	cacheHandler := handlers.NewCacheHandler(cacheService, log)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
 
 	// Регистрация обработчиков событий Kafka
@@ -74,7 +85,7 @@ func main() {
 	}
 
 	// Настройка HTTP роутера
-	mux := setupRoutes(orderHandler, courierHandler, healthHandler)
+	mux := setupRoutes(orderHandler, courierHandler, cacheHandler, healthHandler)
 
 	// Создание HTTP сервера
 	server := &http.Server{
@@ -111,13 +122,16 @@ func main() {
 }
 
 // setupRoutes настраивает маршруты HTTP сервера
-func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
+func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, cacheHandler *handlers.CacheHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
 	mux.HandleFunc("/health", corsMiddleware(healthHandler.Health))
 	mux.HandleFunc("/health/readiness", corsMiddleware(healthHandler.Readiness))
 	mux.HandleFunc("/health/liveness", corsMiddleware(healthHandler.Liveness))
+
+	// Cache metrics endpoint
+	mux.HandleFunc("/api/cache/metrics", corsMiddleware(cacheHandler.GetMetrics))
 
 	// Order endpoints
 	mux.HandleFunc("/api/orders", corsMiddleware(handleOrdersRoute(orderHandler)))

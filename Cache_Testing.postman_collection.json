@@ -1,0 +1,289 @@
+{
+	"info": {
+		"name": "Task 8 - Cache Testing",
+		"description": "Тестирование интеллектуального кеширования с Redis для Delivery System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Начальные метрики кеша",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/cache/metrics",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "cache", "metrics"]
+				},
+				"description": "Проверяем начальное состояние кеша.\nОжидаемый результат:\n- hits: 0\n- misses: 0 (или 1 если был cache warming)\n- cache_size: 1 (доступные курьеры из cache warming)\n- hit_rate: 0"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Создать заказ",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Сохраняем ID заказа для следующих запросов",
+							"var jsonData = pm.response.json();",
+							"pm.collectionVariables.set(\"order_id\", jsonData.id);",
+							"",
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Order created and cached\", function () {",
+							"    pm.expect(jsonData).to.have.property('id');",
+							"    pm.expect(jsonData.status).to.eql('created');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"customer_name\": \"Test User\",\n  \"customer_phone\": \"+1234567890\",\n  \"delivery_address\": \"Test Address 123\",\n  \"items\": [\n    {\n      \"name\": \"Pizza Margherita\",\n      \"quantity\": 2,\n      \"price\": 15.99\n    },\n    {\n      \"name\": \"Coca Cola\",\n      \"quantity\": 1,\n      \"price\": 2.50\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/orders",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders"]
+				},
+				"description": "Создаём новый заказ.\nПосле создания заказ автоматически кешируется в Redis с TTL 5 минут.\n\nВажно: ID заказа автоматически сохраняется в переменную {{order_id}}"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Получить заказ (1-й раз - MISS)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/orders/{{order_id}}",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders", "{{order_id}}"]
+				},
+				"description": "Первый запрос заказа после создания.\n\nТак как заказ уже был закеширован при создании, это будет HIT, но давайте удалим кеш и проверим MISS.\n\nВ реальности это должно быть быстрее, так как данные берутся из Redis, а не из PostgreSQL."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Получить заказ (2-й раз - HIT)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/orders/{{order_id}}",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders", "{{order_id}}"]
+				},
+				"description": "Второй запрос того же заказа.\n\nЭто должен быть HIT - данные берутся из кеша Redis (⚡ быстро!)"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Метрики после чтения",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/cache/metrics",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "cache", "metrics"]
+				},
+				"description": "Проверяем метрики после операций чтения.\n\nОжидаемый результат:\n- hits: 2+ (чтение заказа из кеша)\n- misses: 0-1 (если был miss)\n- hit_rate: должен быть > 50%"
+			},
+			"response": []
+		},
+		{
+			"name": "6. Обновить статус заказа",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"status\": \"accepted\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/orders/{{order_id}}/status",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders", "{{order_id}}", "status"]
+				},
+				"description": "Обновляем статус заказа.\n\nВажно: После обновления кеш этого заказа должен быть ИНВАЛИДИРОВАН (удалён из Redis).\n\nЭто гарантирует, что следующий запрос получит свежие данные из БД."
+			},
+			"response": []
+		},
+		{
+			"name": "7. Метрики после инвалидации",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/cache/metrics",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "cache", "metrics"]
+				},
+				"description": "Проверяем метрики после обновления заказа.\n\nОжидаемый результат:\n- evictions: 1+ (кеш заказа был удалён)\n\nЭто подтверждает, что Cache Invalidation работает правильно!"
+			},
+			"response": []
+		},
+		{
+			"name": "8. Получить заказ после обновления",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/orders/{{order_id}}",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders", "{{order_id}}"]
+				},
+				"description": "Получаем заказ после обновления статуса.\n\nЭто будет MISS (данные из БД), так как кеш был инвалидирован.\nПосле этого запроса данные снова закешируются."
+			},
+			"response": []
+		},
+		{
+			"name": "9. Многократное чтение (HIT)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/orders/{{order_id}}",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders", "{{order_id}}"]
+				},
+				"description": "Повторяем этот запрос 5-10 раз подряд (Run Collection).\n\nВсе эти запросы должны быть HIT из кеша.\nЭто поднимет hit_rate выше 70%!"
+			},
+			"response": []
+		},
+		{
+			"name": "10. Финальные метрики",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/cache/metrics",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "cache", "metrics"]
+				},
+				"description": "Финальная проверка метрик.\n\nКритерии успеха (из задания):\n✅ hit_rate >= 70%\n✅ evictions > 0 (инвалидация работает)\n✅ cache_size > 0 (данные в кеше)"
+			},
+			"response": []
+		},
+		{
+			"name": "BONUS: Создать курьера",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.collectionVariables.set(\"courier_id\", jsonData.id);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Иван Иванов\",\n  \"phone\": \"+79991234567\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/couriers",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "couriers"]
+				},
+				"description": "Создаём курьера для проверки кеширования курьеров."
+			},
+			"response": []
+		},
+		{
+			"name": "BONUS: Получить курьера (HIT)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/couriers/{{courier_id}}",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "couriers", "{{courier_id}}"]
+				},
+				"description": "Получаем курьера - должен быть из кеша."
+			},
+			"response": []
+		},
+		{
+			"name": "BONUS: Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/health",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["health"]
+				},
+				"description": "Проверка здоровья системы (не кешируется)."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "order_id",
+			"value": ""
+		},
+		{
+			"key": "courier_id",
+			"value": ""
+		}
+	]
+}
+

@@ -13,6 +13,14 @@ type Config struct {
 	Redis    RedisConfig    `json:"redis"`
 	Kafka    KafkaConfig    `json:"kafka"`
 	Logger   LoggerConfig   `json:"logger"`
+	Cache    CacheConfig    `json:"cache"`
+}
+
+// CacheConfig представляет конфигурацию кеширования
+type CacheConfig struct {
+	Enabled     bool `json:"enabled"`
+	DefaultTTL  int  `json:"default_ttl"`  // TTL для обычных данных (секунды)
+	HotDataTTL  int  `json:"hot_data_ttl"` // TTL для горячих данных (секунды)
 }
 
 // ServerConfig представляет конфигурацию HTTP сервера
@@ -98,6 +106,11 @@ func Load() *Config {
 			Level:  getEnv("LOG_LEVEL", "info"),
 			Format: getEnv("LOG_FORMAT", "json"),
 			File:   getEnv("LOG_FILE", ""),
+		},
+		Cache: CacheConfig{
+			Enabled:    getEnv("CACHE_ENABLED", "true") == "true",
+			DefaultTTL: getEnvAsInt("CACHE_DEFAULT_TTL", 300), // 5 минут
+			HotDataTTL: getEnvAsInt("CACHE_HOT_DATA_TTL", 60), // 1 минута
 		},
 	}
 }

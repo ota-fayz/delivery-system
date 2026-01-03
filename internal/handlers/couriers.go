@@ -10,7 +10,6 @@ import (
 	"delivery-system/internal/kafka"
 	"delivery-system/internal/logger"
 	"delivery-system/internal/models"
-	"delivery-system/internal/redis"
 	"delivery-system/internal/services"
 
 	"github.com/google/uuid"
@@ -20,16 +19,16 @@ import (
 type CourierHandler struct {
 	courierService *services.CourierService
 	producer       *kafka.Producer
-	redisClient    *redis.Client
+	cacheService   *services.CacheService
 	log            *logger.Logger
 }
 
 // NewCourierHandler создает новый обработчик курьеров
-func NewCourierHandler(courierService *services.CourierService, producer *kafka.Producer, redisClient *redis.Client, log *logger.Logger) *CourierHandler {
+func NewCourierHandler(courierService *services.CourierService, producer *kafka.Producer, cacheService *services.CacheService, log *logger.Logger) *CourierHandler {
 	return &CourierHandler{
 		courierService: courierService,
 		producer:       producer,
-		redisClient:    redisClient,
+		cacheService:   cacheService,
 		log:            log,
 	}
 }
@@ -62,8 +61,8 @@ func (h *CourierHandler) CreateCourier(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Кеширование курьера в Redis
-	cacheKey := redis.GenerateKey(redis.KeyPrefixCourier, courier.ID.String())
-	if err := h.redisClient.Set(r.Context(), cacheKey, courier, defaultCacheTTL); err != nil {
+	cacheKey := services.BuildKey("courier", courier.ID.String())
+	if err := h.cacheService.Set(r.Context(), cacheKey, courier, h.cacheService.GetDefaultTTL()); err != nil {
 		h.log.WithError(err).Error("Failed to cache courier")
 	}
 
@@ -85,9 +84,10 @@ func (h *CourierHandler) GetCourier(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Попытка получить из кеша
-	cacheKey := redis.GenerateKey(redis.KeyPrefixCourier, courierID.String())
+	cacheKey := services.BuildKey("courier", courierID.String())
 	var courier models.Courier
-	if err := h.redisClient.Get(r.Context(), cacheKey, &courier); err == nil {
+	found, _ := h.cacheService.Get(r.Context(), cacheKey, &courier)
+	if found {
 		h.log.WithField("courier_id", courierID).Debug("Courier retrieved from cache")
 		writeJSONResponse(w, http.StatusOK, &courier)
 		return
@@ -106,7 +106,7 @@ func (h *CourierHandler) GetCourier(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Кеширование курьера
-	if err := h.redisClient.Set(r.Context(), cacheKey, courierPtr, defaultCacheTTL); err != nil {
+	if err := h.cacheService.Set(r.Context(), cacheKey, courierPtr, h.cacheService.GetDefaultTTL()); err != nil {
 		h.log.WithError(err).Error("Failed to cache courier")
 	}
 
@@ -169,8 +169,8 @@ func (h *CourierHandler) UpdateCourierStatus(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Инвалидация кеша
-	cacheKey := redis.GenerateKey(redis.KeyPrefixCourier, courierID.String())
-	if err := h.redisClient.Delete(r.Context(), cacheKey); err != nil {
+	cacheKey := services.BuildKey("courier", courierID.String())
+	if err := h.cacheService.Delete(r.Context(), cacheKey); err != nil {
 		h.log.WithError(err).Error("Failed to invalidate courier cache")
 	}
 
@@ -280,11 +280,10 @@ func (h *CourierHandler) AssignOrderToCourier(w http.ResponseWriter, r *http.Req
 	}
 
 	// Инвалидация кеша курьера и заказа
-	courierCacheKey := redis.GenerateKey(redis.KeyPrefixCourier, courierID.String())
-	orderCacheKey := redis.GenerateKey(redis.KeyPrefixOrder, req.OrderID.String())
+	courierCacheKey := services.BuildKey("courier", courierID.String())
+	orderCacheKey := services.BuildKey("order", req.OrderID.String())
 
-	h.redisClient.Delete(r.Context(), courierCacheKey)
-	h.redisClient.Delete(r.Context(), orderCacheKey)
+	h.cacheService.Delete(r.Context(), courierCacheKey, orderCacheKey)
 
 	h.log.WithField("order_id", req.OrderID).WithField("courier_id", courierID).Info("Order assigned to courier")
 	writeJSONResponse(w, http.StatusOK, map[string]string{"message": "Order assigned to courier successfully"})

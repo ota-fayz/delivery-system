@@ -151,6 +151,12 @@ func (c *Client) Health(ctx context.Context) error {
 	return err
 }
 
+// GetClient возвращает внутренний Redis клиент для прямого доступа
+// Используется для специализированных операций (Pipeline, DBSize, Lua scripts)
+func (c *Client) GetClient() *redis.Client {
+	return c.client
+}
+
 // GenerateKey генерирует ключ для кеша
 func GenerateKey(prefix, id string) string {
 	return fmt.Sprintf("%s:%s", prefix, id)
