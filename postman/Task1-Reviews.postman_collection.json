@@ -1,0 +1,907 @@
+{
+  "info": {
+    "_postman_id": "task1-reviews-collection",
+    "name": "Task 1 - Reviews & Ratings",
+    "description": "Коллекция для тестирования системы рейтингов курьеров и отзывов клиентов",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Подготовка данных",
+      "item": [
+        {
+          "name": "Создать курьера",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Сохраняем courier_id в переменные окружения",
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('courier_id', response.id);",
+                  "    pm.test('Курьер создан успешно', function () {",
+                  "        pm.response.to.have.status(201);",
+                  "    });",
+                  "    pm.test('Ответ содержит ID курьера', function () {",
+                  "        pm.expect(response.id).to.be.a('string');",
+                  "    });",
+                  "    pm.test('Рейтинг пустой у нового курьера', function () {",
+                  "        pm.expect(response.rating).to.be.null;",
+                  "        pm.expect(response.total_reviews).to.equal(0);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Иван Петров\",\n  \"phone\": \"+79991234567\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Обновить статус курьера (available)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"available\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "{{courier_id}}", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Создать заказ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Сохраняем order_id в переменные окружения",
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('order_id', response.id);",
+                  "    pm.test('Заказ создан успешно', function () {",
+                  "        pm.response.to.have.status(201);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Мария Иванова\",\n  \"customer_phone\": \"+79997654321\",\n  \"delivery_address\": \"Москва, ул. Ленина, д. 10, кв. 5\",\n  \"items\": [\n    {\n      \"name\": \"Пицца Маргарита\",\n      \"quantity\": 2,\n      \"price\": 450.00\n    },\n    {\n      \"name\": \"Coca-Cola 0.5л\",\n      \"quantity\": 2,\n      \"price\": 80.00\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Назначить курьера на заказ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{order_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier_id}}/assign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "{{courier_id}}", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Обновить статус заказа (delivered)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}", "status"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Создание отзывов",
+      "item": [
+        {
+          "name": "Создать отзыв (5 звёзд)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Отзыв создан успешно', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Ответ содержит данные отзыва', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.id).to.be.a('string');",
+                  "    pm.expect(response.rating).to.equal(5);",
+                  "    pm.expect(response.order_id).to.equal(pm.environment.get('order_id'));",
+                  "    pm.expect(response.courier_id).to.equal(pm.environment.get('courier_id'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Отличная доставка! Курьер приехал вовремя, всё аккуратно упаковано. Очень вежливый и приятный человек.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/review",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}", "review"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Вернуть курьера в статус available",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Статус курьера обновлён', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "console.log('Курьер снова доступен для новых заказов');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"available\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "{{courier_id}}", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Создать второй заказ для теста",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('order_id_2', response.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Петр Сидоров\",\n  \"customer_phone\": \"+79991112233\",\n  \"delivery_address\": \"Москва, пр-т Мира, д. 20\",\n  \"items\": [\n    {\n      \"name\": \"Бургер классический\",\n      \"quantity\": 1,\n      \"price\": 350.00\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Назначить того же курьера",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{order_id_2}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier_id}}/assign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "{{courier_id}}", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Доставить второй заказ",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id_2}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id_2}}", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Создать отзыв (4 звезды, без комментария)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Отзыв создан успешно', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Комментарий необязателен', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.rating).to.equal(4);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id_2}}/review",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id_2}}", "review"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Получение отзывов",
+      "item": [
+        {
+          "name": "Получить отзывы курьера",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Отзывы получены успешно', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Список содержит отзывы', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.be.an('array');",
+                  "    pm.expect(response.length).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "pm.test('Отзывы отсортированы по дате', function () {",
+                  "    const response = pm.response.json();",
+                  "    if (response.length > 1) {",
+                  "        const first = new Date(response[0].created_at);",
+                  "        const second = new Date(response[1].created_at);",
+                  "        pm.expect(first).to.be.at.least(second);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier_id}}/reviews",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "{{courier_id}}", "reviews"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Получить данные курьера (проверка рейтинга)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Курьер получен успешно', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Рейтинг курьера обновлён', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.rating).to.exist;",
+                  "    pm.expect(response.rating).to.be.a('number');",
+                  "    pm.expect(response.rating).to.be.at.least(1);",
+                  "    pm.expect(response.rating).to.be.at.most(5);",
+                  "});",
+                  "",
+                  "pm.test('Количество отзывов корректно', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.total_reviews).to.be.a('number');",
+                  "    pm.expect(response.total_reviews).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "pm.test('Рейтинг 4.5 после двух отзывов (5 и 4)', function () {",
+                  "    const response = pm.response.json();",
+                  "    if (response.total_reviews === 2) {",
+                  "        pm.expect(response.rating).to.equal(4.5);",
+                  "    }",
+                  "});",
+                  "",
+                  "console.log('Рейтинг курьера:', pm.response.json().rating);",
+                  "console.log('Всего отзывов:', pm.response.json().total_reviews);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "{{courier_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Негативные сценарии",
+      "item": [
+        {
+          "name": "Попытка создать дубликат отзыва",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Дубликат отзыва отклонён', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Ошибка содержит описание', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('already exists');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 3,\n  \"comment\": \"Попытка создать второй отзыв\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/review",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}", "review"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Создать заказ без доставки",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('order_id_undelivered', response.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Тест Недоставленный\",\n  \"customer_phone\": \"+79995556677\",\n  \"delivery_address\": \"Москва, ул. Тестовая, д. 99\",\n  \"items\": [\n    {\n      \"name\": \"Тестовый товар\",\n      \"quantity\": 1,\n      \"price\": 100.00\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Попытка оставить отзыв на недоставленный заказ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Отзыв на недоставленный заказ отклонён', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Ошибка содержит правильное сообщение', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('delivered');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Попытка оценить недоставленный заказ\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id_undelivered}}/review",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id_undelivered}}", "review"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Попытка создать отзыв с неверным рейтингом (0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Неверный рейтинг отклонён', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 0,\n  \"comment\": \"Рейтинг меньше допустимого\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id_undelivered}}/review",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id_undelivered}}", "review"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Попытка создать отзыв с неверным рейтингом (6)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Неверный рейтинг отклонён', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 6,\n  \"comment\": \"Рейтинг больше допустимого\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id_undelivered}}/review",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id_undelivered}}", "review"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Получить отзывы несуществующего курьера",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Запрос выполнен успешно', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Возвращён пустой массив', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.be.an('array');",
+                  "    pm.expect(response.length).to.equal(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/couriers/00000000-0000-0000-0000-000000000000/reviews",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "couriers",
+                "00000000-0000-0000-0000-000000000000",
+                "reviews"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Фильтрация по рейтингу",
+      "item": [
+        {
+          "name": "Получить доступных курьеров (без фильтра)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Запрос выполнен успешно', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Возвращён массив курьеров', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Курьеры отсортированы по рейтингу', function () {",
+                  "    const response = pm.response.json();",
+                  "    if (response.length > 1) {",
+                  "        // Проверяем, что курьеры с рейтингом идут перед курьерами без рейтинга",
+                  "        for (let i = 0; i < response.length - 1; i++) {",
+                  "            if (response[i].rating !== null && response[i+1].rating !== null) {",
+                  "                pm.expect(response[i].rating).to.be.at.least(response[i+1].rating);",
+                  "            }",
+                  "        }",
+                  "    }",
+                  "});",
+                  "",
+                  "console.log('Доступные курьеры:', pm.response.json().map(c => ({",
+                  "    id: c.id,",
+                  "    name: c.name,",
+                  "    rating: c.rating,",
+                  "    total_reviews: c.total_reviews",
+                  "})));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/couriers/available",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "available"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Получить доступных курьеров (min_rating=4.0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Запрос выполнен успешно', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Все курьеры имеют рейтинг >= 4.0', function () {",
+                  "    const response = pm.response.json();",
+                  "    response.forEach(courier => {",
+                  "        if (courier.rating !== null) {",
+                  "            pm.expect(courier.rating).to.be.at.least(4.0);",
+                  "        }",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Курьеры отсортированы по рейтингу (DESC)', function () {",
+                  "    const response = pm.response.json();",
+                  "    if (response.length > 1) {",
+                  "        for (let i = 0; i < response.length - 1; i++) {",
+                  "            if (response[i].rating !== null && response[i+1].rating !== null) {",
+                  "                pm.expect(response[i].rating).to.be.at.least(response[i+1].rating);",
+                  "            }",
+                  "        }",
+                  "    }",
+                  "});",
+                  "",
+                  "console.log('Топ курьеры (min_rating=4.0):', pm.response.json().map(c => ({",
+                  "    name: c.name,",
+                  "    rating: c.rating,",
+                  "    total_reviews: c.total_reviews",
+                  "})));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/couriers/available?min_rating=4.0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "available"],
+              "query": [
+                {
+                  "key": "min_rating",
+                  "value": "4.0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Получить доступных курьеров (min_rating=4.5)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Запрос выполнен успешно', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Все курьеры имеют рейтинг >= 4.5', function () {",
+                  "    const response = pm.response.json();",
+                  "    response.forEach(courier => {",
+                  "        if (courier.rating !== null) {",
+                  "            pm.expect(courier.rating).to.be.at.least(4.5);",
+                  "        }",
+                  "    });",
+                  "});",
+                  "",
+                  "console.log('Топ курьеры (min_rating=4.5):', pm.response.json().length, 'курьеров');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/couriers/available?min_rating=4.5",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers", "available"],
+              "query": [
+                {
+                  "key": "min_rating",
+                  "value": "4.5"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Получить всех курьеров с фильтром (min_rating=4.0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Запрос выполнен успешно', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Все курьеры имеют рейтинг >= 4.0', function () {",
+                  "    const response = pm.response.json();",
+                  "    response.forEach(courier => {",
+                  "        if (courier.rating !== null) {",
+                  "            pm.expect(courier.rating).to.be.at.least(4.0);",
+                  "        }",
+                  "    });",
+                  "});",
+                  "",
+                  "console.log('Курьеры с рейтингом >= 4.0:', pm.response.json().map(c => ({",
+                  "    name: c.name,",
+                  "    status: c.status,",
+                  "    rating: c.rating",
+                  "})));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/couriers?min_rating=4.0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers"],
+              "query": [
+                {
+                  "key": "min_rating",
+                  "value": "4.0"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}

@@ -208,7 +208,15 @@ func (h *CourierHandler) GetCouriers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	couriers, err := h.courierService.GetCouriers(status, limit, offset)
+	// Парсинг минимального рейтинга
+	var minRating *float64
+	if minRatingStr := query.Get("min_rating"); minRatingStr != "" {
+		if mr, err := strconv.ParseFloat(minRatingStr, 64); err == nil && mr >= 1 && mr <= 5 {
+			minRating = &mr
+		}
+	}
+
+	couriers, err := h.courierService.GetCouriers(status, minRating, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get couriers")
 		writeErrorResponse(w, http.StatusInternalServerError, "Failed to get couriers")
@@ -218,14 +226,24 @@ func (h *CourierHandler) GetCouriers(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, couriers)
 }
 
-// GetAvailableCouriers получает список доступных курьеров
+// GetAvailableCouriers получает список доступных курьеров с фильтрацией по рейтингу
 func (h *CourierHandler) GetAvailableCouriers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
-	couriers, err := h.courierService.GetAvailableCouriers()
+	query := r.URL.Query()
+
+	// Парсинг минимального рейтинга
+	var minRating *float64
+	if minRatingStr := query.Get("min_rating"); minRatingStr != "" {
+		if mr, err := strconv.ParseFloat(minRatingStr, 64); err == nil && mr >= 1 && mr <= 5 {
+			minRating = &mr
+		}
+	}
+
+	couriers, err := h.courierService.GetAvailableCouriers(minRating)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get available couriers")
 		writeErrorResponse(w, http.StatusInternalServerError, "Failed to get available couriers")

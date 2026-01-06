@@ -59,11 +59,13 @@ func main() {
 	// Инициализация сервисов
 	orderService := services.NewOrderService(db, log)
 	courierService := services.NewCourierService(db, log)
+	reviewService := services.NewReviewService(db, log)
 
 	// Инициализация handlers
 	orderHandler := handlers.NewOrderHandler(orderService, producer, redisClient, log)
 	courierHandler := handlers.NewCourierHandler(courierService, producer, redisClient, log)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
+	reviewHandler := handlers.NewReviewHandler(reviewService, log)
 
 	// Регистрация обработчиков событий Kafka
 	registerEventHandlers(consumer, log)
@@ -74,7 +76,7 @@ func main() {
 	}
 
 	// Настройка HTTP роутера
-	mux := setupRoutes(orderHandler, courierHandler, healthHandler)
+	mux := setupRoutes(orderHandler, courierHandler, healthHandler, reviewHandler)
 
 	// Создание HTTP сервера
 	server := &http.Server{
@@ -111,7 +113,7 @@ func main() {
 }
 
 // setupRoutes настраивает маршруты HTTP сервера
-func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
+func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler, reviewHandler *handlers.ReviewHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
@@ -121,11 +123,11 @@ func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.C
 
 	// Order endpoints
 	mux.HandleFunc("/api/orders", corsMiddleware(handleOrdersRoute(orderHandler)))
-	mux.HandleFunc("/api/orders/", corsMiddleware(handleOrderRoute(orderHandler)))
+	mux.HandleFunc("/api/orders/", corsMiddleware(handleOrderRoute(orderHandler, reviewHandler)))
 
 	// Courier endpoints
 	mux.HandleFunc("/api/couriers", corsMiddleware(handleCouriersRoute(courierHandler)))
-	mux.HandleFunc("/api/couriers/", corsMiddleware(handleCourierRoute(courierHandler)))
+	mux.HandleFunc("/api/couriers/", corsMiddleware(handleCourierRoute(courierHandler, reviewHandler)))
 	mux.HandleFunc("/api/couriers/available", corsMiddleware(courierHandler.GetAvailableCouriers))
 
 	return mux
@@ -146,9 +148,16 @@ func handleOrdersRoute(handler *handlers.OrderHandler) http.HandlerFunc {
 }
 
 // handleOrderRoute обрабатывает маршруты для отдельного заказа
-func handleOrderRoute(handler *handlers.OrderHandler) http.HandlerFunc {
+func handleOrderRoute(handler *handlers.OrderHandler, reviewHandler *handlers.ReviewHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/status") {
+		if strings.HasSuffix(r.URL.Path, "/review") {
+			// Создание отзыва для заказа
+			if r.Method == http.MethodPost {
+				reviewHandler.CreateReview(w, r)
+			} else {
+				writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+			}
+		} else if strings.HasSuffix(r.URL.Path, "/status") {
 			// Обновление статуса заказа
 			if r.Method == http.MethodPut {
 				handler.UpdateOrderStatus(w, r)
@@ -181,9 +190,16 @@ func handleCouriersRoute(handler *handlers.CourierHandler) http.HandlerFunc {
 }
 
 // handleCourierRoute обрабатывает маршруты для отдельного курьера
-func handleCourierRoute(handler *handlers.CourierHandler) http.HandlerFunc {
+func handleCourierRoute(handler *handlers.CourierHandler, reviewHandler *handlers.ReviewHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/status") {
+		if strings.HasSuffix(r.URL.Path, "/reviews") {
+			// Получение отзывов курьера
+			if r.Method == http.MethodGet {
+				reviewHandler.GetCourierReviews(w, r)
+			} else {
+				writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+			}
+		} else if strings.HasSuffix(r.URL.Path, "/status") {
 			// Обновление статуса курьера
 			if r.Method == http.MethodPut {
 				handler.UpdateCourierStatus(w, r)

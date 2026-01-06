@@ -62,16 +62,16 @@ func (s *CourierService) GetCourier(courierID uuid.UUID) (*models.Courier, error
 	courier := &models.Courier{}
 
 	query := `
-		SELECT id, name, phone, status, current_lat, current_lon, 
-		       created_at, updated_at, last_seen_at
-		FROM couriers 
+		SELECT id, name, phone, status, current_lat, current_lon,
+		       rating, total_reviews, created_at, updated_at, last_seen_at
+		FROM couriers
 		WHERE id = $1
 	`
 
 	err := s.db.QueryRow(query, courierID).Scan(
 		&courier.ID, &courier.Name, &courier.Phone, &courier.Status,
-		&courier.CurrentLat, &courier.CurrentLon, &courier.CreatedAt,
-		&courier.UpdatedAt, &courier.LastSeenAt,
+		&courier.CurrentLat, &courier.CurrentLon, &courier.Rating, &courier.TotalReviews,
+		&courier.CreatedAt, &courier.UpdatedAt, &courier.LastSeenAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -86,7 +86,7 @@ func (s *CourierService) GetCourier(courierID uuid.UUID) (*models.Courier, error
 // UpdateCourierStatus обновляет статус курьера
 func (s *CourierService) UpdateCourierStatus(courierID uuid.UUID, req *models.UpdateCourierStatusRequest) error {
 	query := `
-		UPDATE couriers 
+		UPDATE couriers
 		SET status = $1, current_lat = $2, current_lon = $3, updated_at = $4, last_seen_at = $5
 		WHERE id = $6
 	`
@@ -117,11 +117,11 @@ func (s *CourierService) UpdateCourierStatus(courierID uuid.UUID, req *models.Up
 }
 
 // GetCouriers получает список курьеров с фильтрацией
-func (s *CourierService) GetCouriers(status *models.CourierStatus, limit, offset int) ([]*models.Courier, error) {
+func (s *CourierService) GetCouriers(status *models.CourierStatus, minRating *float64, limit, offset int) ([]*models.Courier, error) {
 	query := `
-		SELECT id, name, phone, status, current_lat, current_lon, 
-		       created_at, updated_at, last_seen_at
-		FROM couriers 
+		SELECT id, name, phone, status, current_lat, current_lon,
+		       rating, total_reviews, created_at, updated_at, last_seen_at
+		FROM couriers
 		WHERE 1=1
 	`
 	args := []interface{}{}
@@ -133,7 +133,15 @@ func (s *CourierService) GetCouriers(status *models.CourierStatus, limit, offset
 		argIndex++
 	}
 
-	query += " ORDER BY created_at DESC"
+	// Фильтрация по минимальному рейтингу
+	if minRating != nil {
+		query += fmt.Sprintf(" AND rating >= $%d", argIndex)
+		args = append(args, *minRating)
+		argIndex++
+	}
+
+	// Сортировка: сначала по рейтингу (топ курьеры), потом по дате создания
+	query += " ORDER BY rating DESC NULLS LAST, created_at DESC"
 
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", argIndex)
@@ -156,8 +164,8 @@ func (s *CourierService) GetCouriers(status *models.CourierStatus, limit, offset
 	for rows.Next() {
 		courier := &models.Courier{}
 		if err := rows.Scan(&courier.ID, &courier.Name, &courier.Phone, &courier.Status,
-			&courier.CurrentLat, &courier.CurrentLon, &courier.CreatedAt,
-			&courier.UpdatedAt, &courier.LastSeenAt); err != nil {
+			&courier.CurrentLat, &courier.CurrentLon, &courier.Rating, &courier.TotalReviews,
+			&courier.CreatedAt, &courier.UpdatedAt, &courier.LastSeenAt); err != nil {
 			return nil, fmt.Errorf("failed to scan courier: %w", err)
 		}
 		couriers = append(couriers, courier)
@@ -166,10 +174,10 @@ func (s *CourierService) GetCouriers(status *models.CourierStatus, limit, offset
 	return couriers, nil
 }
 
-// GetAvailableCouriers получает список доступных курьеров
-func (s *CourierService) GetAvailableCouriers() ([]*models.Courier, error) {
+// GetAvailableCouriers получает список доступных курьеров с фильтрацией по рейтингу
+func (s *CourierService) GetAvailableCouriers(minRating *float64) ([]*models.Courier, error) {
 	status := models.CourierStatusAvailable
-	return s.GetCouriers(&status, 0, 0)
+	return s.GetCouriers(&status, minRating, 0, 0)
 }
 
 // AssignOrderToCourier назначает заказ курьеру
@@ -197,7 +205,7 @@ func (s *CourierService) AssignOrderToCourier(orderID, courierID uuid.UUID) erro
 
 	// Назначаем заказ курьеру и меняем статус заказа
 	orderQuery := `
-		UPDATE orders 
+		UPDATE orders
 		SET courier_id = $1, status = $2, updated_at = $3
 		WHERE id = $4 AND status = $5
 	`
@@ -217,7 +225,7 @@ func (s *CourierService) AssignOrderToCourier(orderID, courierID uuid.UUID) erro
 
 	// Меняем статус курьера на "занят"
 	courierUpdateQuery := `
-		UPDATE couriers 
+		UPDATE couriers
 		SET status = $1, updated_at = $2
 		WHERE id = $3
 	`

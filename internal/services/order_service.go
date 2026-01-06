@@ -102,9 +102,9 @@ func (s *OrderService) GetOrder(orderID uuid.UUID) (*models.Order, error) {
 	order := &models.Order{}
 
 	query := `
-		SELECT id, customer_name, customer_phone, delivery_address, total_amount, 
+		SELECT id, customer_name, customer_phone, delivery_address, total_amount,
 		       status, courier_id, created_at, updated_at, delivered_at
-		FROM orders 
+		FROM orders
 		WHERE id = $1
 	`
 
@@ -146,22 +146,26 @@ func (s *OrderService) GetOrder(orderID uuid.UUID) (*models.Order, error) {
 
 // UpdateOrderStatus обновляет статус заказа
 func (s *OrderService) UpdateOrderStatus(orderID uuid.UUID, req *models.UpdateOrderStatusRequest) error {
-	query := `
-		UPDATE orders 
-		SET status = $1, courier_id = $2, updated_at = $3
-	`
-	args := []interface{}{req.Status, req.CourierID, time.Now()}
+	query := `UPDATE orders SET status = $1, updated_at = $2`
+	args := []interface{}{req.Status, time.Now()}
+	argIndex := 3
+
+	// Обновляем courier_id только если он передан явно
+	if req.CourierID != nil {
+		query += fmt.Sprintf(", courier_id = $%d", argIndex)
+		args = append(args, req.CourierID)
+		argIndex++
+	}
 
 	// Если статус "доставлен", устанавливаем время доставки
 	if req.Status == models.OrderStatusDelivered {
-		query += ", delivered_at = $4"
+		query += fmt.Sprintf(", delivered_at = $%d", argIndex)
 		args = append(args, time.Now())
-		query += " WHERE id = $5"
-		args = append(args, orderID)
-	} else {
-		query += " WHERE id = $4"
-		args = append(args, orderID)
+		argIndex++
 	}
+
+	query += fmt.Sprintf(" WHERE id = $%d", argIndex)
+	args = append(args, orderID)
 
 	result, err := s.db.Exec(query, args...)
 	if err != nil {
@@ -189,9 +193,9 @@ func (s *OrderService) UpdateOrderStatus(orderID uuid.UUID, req *models.UpdateOr
 // GetOrders получает список заказов с фильтрацией
 func (s *OrderService) GetOrders(status *models.OrderStatus, courierID *uuid.UUID, limit, offset int) ([]*models.Order, error) {
 	query := `
-		SELECT id, customer_name, customer_phone, delivery_address, total_amount, 
+		SELECT id, customer_name, customer_phone, delivery_address, total_amount,
 		       status, courier_id, created_at, updated_at, delivered_at
-		FROM orders 
+		FROM orders
 		WHERE 1=1
 	`
 	args := []interface{}{}
