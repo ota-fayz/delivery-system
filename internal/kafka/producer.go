@@ -50,9 +50,10 @@ func (p *Producer) Close() error {
 // PublishOrderCreated публикует событие создания заказа
 func (p *Producer) PublishOrderCreated(order *models.Order) error {
 	event := models.Event{
-		ID:        uuid.New(),
-		Type:      models.EventTypeOrderCreated,
-		Timestamp: time.Now(),
+		ID:            uuid.New(),
+		CorrelationID: uuid.New(),
+		Type:          models.EventTypeOrderCreated,
+		Timestamp:     time.Now(),
 		Data: models.OrderCreatedEvent{
 			OrderID:         order.ID,
 			CustomerName:    order.CustomerName,
@@ -68,9 +69,10 @@ func (p *Producer) PublishOrderCreated(order *models.Order) error {
 // PublishOrderStatusChanged публикует событие изменения статуса заказа
 func (p *Producer) PublishOrderStatusChanged(orderID uuid.UUID, oldStatus, newStatus models.OrderStatus, courierID *uuid.UUID) error {
 	event := models.Event{
-		ID:        uuid.New(),
-		Type:      models.EventTypeOrderStatusChanged,
-		Timestamp: time.Now(),
+		ID:            uuid.New(),
+		CorrelationID: uuid.New(),
+		Type:          models.EventTypeOrderStatusChanged,
+		Timestamp:     time.Now(),
 		Data: models.OrderStatusChangedEvent{
 			OrderID:   orderID,
 			OldStatus: oldStatus,
@@ -86,9 +88,10 @@ func (p *Producer) PublishOrderStatusChanged(orderID uuid.UUID, oldStatus, newSt
 // PublishCourierAssigned публикует событие назначения курьера
 func (p *Producer) PublishCourierAssigned(orderID, courierID uuid.UUID) error {
 	event := models.Event{
-		ID:        uuid.New(),
-		Type:      models.EventTypeCourierAssigned,
-		Timestamp: time.Now(),
+		ID:            uuid.New(),
+		CorrelationID: uuid.New(),
+		Type:          models.EventTypeCourierAssigned,
+		Timestamp:     time.Now(),
 		Data: models.CourierAssignedEvent{
 			OrderID:   orderID,
 			CourierID: courierID,
@@ -102,9 +105,10 @@ func (p *Producer) PublishCourierAssigned(orderID, courierID uuid.UUID) error {
 // PublishCourierStatusChanged публикует событие изменения статуса курьера
 func (p *Producer) PublishCourierStatusChanged(courierID uuid.UUID, oldStatus, newStatus models.CourierStatus) error {
 	event := models.Event{
-		ID:        uuid.New(),
-		Type:      models.EventTypeCourierStatusChanged,
-		Timestamp: time.Now(),
+		ID:            uuid.New(),
+		CorrelationID: uuid.New(),
+		Type:          models.EventTypeCourierStatusChanged,
+		Timestamp:     time.Now(),
 		Data: models.CourierStatusChangedEvent{
 			CourierID: courierID,
 			OldStatus: oldStatus,
@@ -119,9 +123,10 @@ func (p *Producer) PublishCourierStatusChanged(courierID uuid.UUID, oldStatus, n
 // PublishLocationUpdated публикует событие обновления местоположения
 func (p *Producer) PublishLocationUpdated(courierID uuid.UUID, lat, lon float64) error {
 	event := models.Event{
-		ID:        uuid.New(),
-		Type:      models.EventTypeLocationUpdated,
-		Timestamp: time.Now(),
+		ID:            uuid.New(),
+		CorrelationID: uuid.New(),
+		Type:          models.EventTypeLocationUpdated,
+		Timestamp:     time.Now(),
 		Data: models.LocationUpdatedEvent{
 			CourierID: courierID,
 			Lat:       lat,
@@ -152,6 +157,10 @@ func (p *Producer) publishEvent(topic string, event models.Event) error {
 			{
 				Key:   []byte("timestamp"),
 				Value: []byte(event.Timestamp.Format(time.RFC3339)),
+			},
+			{
+				Key:   []byte("correlation_id"),
+				Value: []byte(event.CorrelationID.String()),
 			},
 		},
 	}

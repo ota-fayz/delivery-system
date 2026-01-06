@@ -19,10 +19,12 @@ const (
 
 // Event представляет базовое событие
 type Event struct {
-	ID        uuid.UUID   `json:"id"`
-	Type      EventType   `json:"type"`
-	Timestamp time.Time   `json:"timestamp"`
-	Data      interface{} `json:"data"`
+	ID            uuid.UUID   `json:"id"`
+	CorrelationID uuid.UUID   `json:"correlation_id"`
+	Type          EventType   `json:"type"`
+	Timestamp     time.Time   `json:"timestamp"`
+	RetryCount    int         `json:"retry_count,omitempty"`
+	Data          interface{} `json:"data"`
 }
 
 // OrderCreatedEvent представляет событие создания заказа

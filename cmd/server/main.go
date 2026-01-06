@@ -49,8 +49,17 @@ func main() {
 	}
 	defer producer.Close()
 
-	// Создание Kafka consumer
-	consumer, err := kafka.NewConsumer(&cfg.Kafka, log)
+	// Создание метрик для Kafka
+	kafkaMetrics := kafka.NewEventMetrics()
+	// Создание DLQ producer (для Dead Letter Queue)
+	dlqProducer, err := kafka.NewProducer(&cfg.Kafka, log)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create DLQ producer")
+	}
+	defer dlqProducer.Close()
+
+	// Создание Kafka consumer с метриками и DLQ
+	consumer, err := kafka.NewConsumer(&cfg.Kafka, log, kafkaMetrics, dlqProducer)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create Kafka consumer")
 	}
@@ -64,6 +73,10 @@ func main() {
 	orderHandler := handlers.NewOrderHandler(orderService, producer, redisClient, log)
 	courierHandler := handlers.NewCourierHandler(courierService, producer, redisClient, log)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
+	kafkaHandler := handlers.NewKafkaHandler(kafkaMetrics, log)
+
+	// Запуск мониторинга lag (проверка каждые 30 секунд, threshold = 1000)
+	consumer.StartLagMonitoring(30*time.Second, 1000)
 
 	// Регистрация обработчиков событий Kafka
 	registerEventHandlers(consumer, log)
@@ -74,7 +87,7 @@ func main() {
 	}
 
 	// Настройка HTTP роутера
-	mux := setupRoutes(orderHandler, courierHandler, healthHandler)
+	mux := setupRoutes(orderHandler, courierHandler, healthHandler, kafkaHandler)
 
 	// Создание HTTP сервера
 	server := &http.Server{
@@ -111,7 +124,7 @@ func main() {
 }
 
 // setupRoutes настраивает маршруты HTTP сервера
-func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
+func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler, kafkaHandler *handlers.KafkaHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
@@ -127,6 +140,9 @@ func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.C
 	mux.HandleFunc("/api/couriers", corsMiddleware(handleCouriersRoute(courierHandler)))
 	mux.HandleFunc("/api/couriers/", corsMiddleware(handleCourierRoute(courierHandler)))
 	mux.HandleFunc("/api/couriers/available", corsMiddleware(courierHandler.GetAvailableCouriers))
+
+	// Kafka monitoring endpoints
+	mux.HandleFunc("/api/kafka/stats", corsMiddleware(kafkaHandler.GetStats))
 
 	return mux
 }
@@ -210,7 +226,7 @@ func handleCourierRoute(handler *handlers.CourierHandler) http.HandlerFunc {
 
 // registerEventHandlers регистрирует обработчики событий Kafka
 func registerEventHandlers(consumer *kafka.Consumer, log *logger.Logger) {
-	// Пример обработчика событий - можно расширить по необходимости
+	// Обработчик событий создания заказа
 	consumer.RegisterHandler("order.created", func(ctx context.Context, event *models.Event) error {
 		log.WithField("event_id", event.ID).Info("Processing order created event")
 		// Здесь можно добавить дополнительную логику обработки

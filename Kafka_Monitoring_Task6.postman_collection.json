@@ -1,0 +1,301 @@
+{
+	"info": {
+		"name": "Task 6: Kafka Monitoring & Tracing",
+		"description": "Testing Kafka event monitoring, tracing, metrics, and Dead Letter Queue",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Kafka Stats (Initial)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has metrics\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('total_processed');",
+							"    pm.expect(jsonData).to.have.property('total_errors');",
+							"    pm.expect(jsonData).to.have.property('total_retried');",
+							"    pm.expect(jsonData).to.have.property('total_dlq');",
+							"    pm.expect(jsonData).to.have.property('error_rate');",
+							"    pm.expect(jsonData).to.have.property('avg_processing_time_ms');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/kafka/stats",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "kafka", "stats"]
+				},
+				"description": "Получить начальную статистику Kafka (должна быть пустой)"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Create Order (Generate Event)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Order created with correlation_id\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('id');",
+							"    pm.environment.set(\"order_id\", jsonData.id);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"customer_name\": \"Test Customer\",\n  \"customer_phone\": \"+79991234567\",\n  \"delivery_address\": \"Moscow, Test Street, 123\",\n  \"items\": [\n    {\n      \"name\": \"Test Item\",\n      \"quantity\": 2,\n      \"price\": 100\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/orders",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders"]
+				},
+				"description": "Создать заказ, что генерирует Kafka событие order.created"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Create Courier (Generate Event)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"var jsonData = pm.response.json();",
+							"pm.environment.set(\"courier_id\", jsonData.id);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Test Courier\",\n  \"phone\": \"+79997654321\",\n  \"vehicle_type\": \"car\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/couriers",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "couriers"]
+				},
+				"description": "Создать курьера"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Update Order Status (Generate Event)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"status\": \"accepted\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/orders/{{order_id}}/status",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders", "{{order_id}}", "status"]
+				},
+				"description": "Обновить статус заказа → генерирует событие order.status_changed"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Kafka Stats (After Events)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Events were processed\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.total_processed).to.be.above(0);",
+							"    console.log('Total Processed:', jsonData.total_processed);",
+							"    console.log('Total Errors:', jsonData.total_errors);",
+							"    console.log('Total Retried:', jsonData.total_retried);",
+							"    console.log('Total DLQ:', jsonData.total_dlq);",
+							"    console.log('Error Rate:', jsonData.error_rate + '%');",
+							"    console.log('Avg Processing Time:', jsonData.avg_processing_time_ms + 'ms');",
+							"});",
+							"",
+							"pm.test(\"Topic stats exist\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('topic_stats');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/kafka/stats",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "kafka", "stats"]
+				},
+				"description": "Получить статистику после обработки событий. Должны увидеть: total_processed > 0, метрики по топикам."
+			},
+			"response": []
+		},
+		{
+			"name": "6. Create Multiple Orders (Load Test)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"customer_name\": \"Load Test Customer {{$randomInt}}\",\n  \"customer_phone\": \"+7999{{$randomInt}}\",\n  \"delivery_address\": \"Test Address {{$randomInt}}\",\n  \"items\": [\n    {\n      \"name\": \"Item {{$randomInt}}\",\n      \"quantity\": {{$randomInt}},\n      \"price\": {{$randomInt}}\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/orders",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "orders"]
+				},
+				"description": "Создать несколько заказов для нагрузочного тестирования. Запусти этот запрос 10-20 раз для генерации событий."
+			},
+			"response": []
+		},
+		{
+			"name": "7. Final Kafka Stats",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"var jsonData = pm.response.json();",
+							"console.log('========== FINAL KAFKA METRICS ==========');",
+							"console.log('Total Processed:', jsonData.total_processed);",
+							"console.log('Total Errors:', jsonData.total_errors);",
+							"console.log('Total Retried:', jsonData.total_retried);",
+							"console.log('Total DLQ:', jsonData.total_dlq);",
+							"console.log('Error Rate:', jsonData.error_rate.toFixed(2) + '%');",
+							"console.log('Avg Processing Time:', jsonData.avg_processing_time_ms.toFixed(2) + 'ms');",
+							"console.log('========================================');",
+							"",
+							"if (jsonData.topic_stats) {",
+							"    console.log('Topic Stats:');",
+							"    Object.keys(jsonData.topic_stats).forEach(topic => {",
+							"        console.log(`  ${topic}:`, jsonData.topic_stats[topic]);",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/kafka/stats",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "kafka", "stats"]
+				},
+				"description": "Финальная проверка метрик после всех тестов"
+			},
+			"response": []
+		}
+	]
+}
+
