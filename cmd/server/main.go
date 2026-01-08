@@ -59,11 +59,13 @@ func main() {
 	// Инициализация сервисов
 	orderService := services.NewOrderService(db, log)
 	courierService := services.NewCourierService(db, log)
+	assignmentService := services.NewAssignmentService(db, log, &cfg.Assignment, orderService, courierService)
 
 	// Инициализация handlers
 	orderHandler := handlers.NewOrderHandler(orderService, producer, redisClient, log)
 	courierHandler := handlers.NewCourierHandler(courierService, producer, redisClient, log)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
+	assignmentHandler := handlers.NewAssignmentHandler(assignmentService, log)
 
 	// Регистрация обработчиков событий Kafka
 	registerEventHandlers(consumer, log)
@@ -74,7 +76,7 @@ func main() {
 	}
 
 	// Настройка HTTP роутера
-	mux := setupRoutes(orderHandler, courierHandler, healthHandler)
+	mux := setupRoutes(orderHandler, courierHandler, healthHandler, assignmentHandler)
 
 	// Создание HTTP сервера
 	server := &http.Server{
@@ -111,7 +113,7 @@ func main() {
 }
 
 // setupRoutes настраивает маршруты HTTP сервера
-func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
+func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler, assignmentHandler *handlers.AssignmentHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
@@ -121,7 +123,7 @@ func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.C
 
 	// Order endpoints
 	mux.HandleFunc("/api/orders", corsMiddleware(handleOrdersRoute(orderHandler)))
-	mux.HandleFunc("/api/orders/", corsMiddleware(handleOrderRoute(orderHandler)))
+	mux.HandleFunc("/api/orders/", corsMiddleware(handleOrderRouteWithAssignment(orderHandler, assignmentHandler)))
 
 	// Courier endpoints
 	mux.HandleFunc("/api/couriers", corsMiddleware(handleCouriersRoute(courierHandler)))
@@ -244,4 +246,36 @@ func writeErrorResponse(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	fmt.Fprintf(w, `{"error": "%s", "message": "%s"}`, http.StatusText(statusCode), message)
+}
+
+// handleOrderRouteWithAssignment обрабатывает маршруты заказов с поддержкой автоназначения
+func handleOrderRouteWithAssignment(orderHandler *handlers.OrderHandler, assignmentHandler *handlers.AssignmentHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Проверяем, является ли это запросом на автоназначение
+		if strings.HasSuffix(r.URL.Path, "/auto-assign") {
+			if r.Method == http.MethodPost {
+				assignmentHandler.AutoAssignCourier(w, r)
+			} else {
+				writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+			}
+			return
+		}
+
+		// Обработка других маршрутов заказов
+		if strings.HasSuffix(r.URL.Path, "/status") {
+			// Обновление статуса заказа
+			if r.Method == http.MethodPut {
+				orderHandler.UpdateOrderStatus(w, r)
+			} else {
+				writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+			}
+		} else {
+			// Получение заказа по ID
+			if r.Method == http.MethodGet {
+				orderHandler.GetOrder(w, r)
+			} else {
+				writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+			}
+		}
+	}
 }

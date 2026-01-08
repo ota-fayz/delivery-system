@@ -2,12 +2,17 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+)
+
+var (
+	ErrInvalidPath = errors.New("invalid path")
 )
 
 // Константы

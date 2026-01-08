@@ -1,0 +1,744 @@
+{
+  "info": {
+    "_postman_id": "task2-auto-courier-assignment",
+    "name": "Task 2: Auto Assignment",
+    "description": "Полное тестирование автоматического назначения курьеров",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health Check",
+      "item": [
+        {
+          "name": "Check API Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function() { pm.response.to.have.status(200); });",
+                  "pm.test('Has status field', function() { pm.expect(pm.response.json()).to.have.property('status'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. Setup - Create Couriers",
+      "item": [
+        {
+          "name": "Create Courier 1 (Closest)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('courier1_id', pm.response.json().id);",
+                  "console.log('Courier #1:', pm.response.json().name);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"\\u0418\\u0432\\u0430\\u043d \\u0411\\u043b\\u0438\\u0437\\u043a\\u0438\\u0439\", \"phone\": \"+79001111111\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Courier 1 Available (1km)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"available\", \"current_lat\": 55.760244, \"current_lon\": 37.618423}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier1_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers",
+                "{{courier1_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Courier 2 (Medium)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('courier2_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"\\u041f\\u0435\\u0442\\u0440 \\u0421\\u0440\\u0435\\u0434\\u043d\\u0438\\u0439\", \"phone\": \"+79002222222\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Courier 2 Available (5km)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"available\", \"current_lat\": 55.795244, \"current_lon\": 37.618423}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier2_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers",
+                "{{courier2_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Courier 3 (Far)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('courier3_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"\\u0421\\u0435\\u0440\\u0433\\u0435\\u0439 \\u0414\\u0430\\u043b\\u0435\\u043a\\u0438\\u0439\", \"phone\": \"+79003333333\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Courier 3 Available (9km)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"available\", \"current_lat\": 55.831244, \"current_lon\": 37.618423}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier3_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers",
+                "{{courier3_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Test Case 1 - Closest Courier",
+      "item": [
+        {
+          "name": "Create Order 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('order1_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customer_name\": \"\\u041a\\u043b\\u0438\\u0435\\u043d\\u0442 1\", \"customer_phone\": \"+79991111111\", \"delivery_address\": \"\\u041c\\u043e\\u0441\\u043a\\u0432\\u0430, \\u0443\\u043b. \\u0422\\u0435\\u0441\\u0442\\u043e\\u0432\\u0430\\u044f, 1\", \"items\": [{\"name\": \"\\u041f\\u0438\\u0446\\u0446\\u0430\", \"quantity\": 1, \"price\": 500}]}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Auto-Assign Order 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success true', () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.test('Courier assigned', () => pm.expect(pm.response.json().assigned_courier).to.exist);",
+                  "pm.test('Closest selected', () => {",
+                  "  const name = pm.response.json().assigned_courier.courier.name;",
+                  "  pm.expect(name).to.equal('Иван Близкий');",
+                  "  console.log('Selected:', name);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order1_id}}/auto-assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order1_id}}",
+                "auto-assign"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Order 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Has courier_id', () => pm.expect(pm.response.json().courier_id).to.exist);",
+                  "pm.test('Status accepted', () => pm.expect(pm.response.json().status).to.equal('accepted'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order1_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order1_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Test Case 2 - Load Consideration",
+      "item": [
+        {
+          "name": "Create Order 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('order2_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customer_name\": \"\\u041a\\u043b\\u0438\\u0435\\u043d\\u0442 2\", \"customer_phone\": \"+79992222222\", \"delivery_address\": \"\\u041c\\u043e\\u0441\\u043a\\u0432\\u0430, \\u0443\\u043b. \\u0422\\u0435\\u0441\\u0442\\u043e\\u0432\\u0430\\u044f, 2\", \"items\": [{\"name\": \"\\u0411\\u0443\\u0440\\u0433\\u0435\\u0440\", \"quantity\": 2, \"price\": 350}]}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Auto-Assign Order 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Success true', () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.test('Different courier', () => {",
+                  "  const name = pm.response.json().assigned_courier.courier.name;",
+                  "  pm.expect(name).to.not.equal('Иван Близкий');",
+                  "  console.log('Selected:', name);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order2_id}}/auto-assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order2_id}}",
+                "auto-assign"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Test Case 3 - Re-assignment Protection",
+      "item": [
+        {
+          "name": "Try Re-Assign Order 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Already assigned msg', () => pm.expect(pm.response.json().message).to.include('already assigned'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order1_id}}/auto-assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order1_id}}",
+                "auto-assign"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Test Case 4 - Non-Existent Order",
+      "item": [
+        {
+          "name": "Assign Non-Existent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Not found msg', () => pm.expect(pm.response.json().message).to.include('not found'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/00000000-0000-0000-0000-000000000000/auto-assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "00000000-0000-0000-0000-000000000000",
+                "auto-assign"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Test Case 5 - No Available Couriers",
+      "item": [
+        {
+          "name": "Set All Offline - Courier 1",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"offline\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier1_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers",
+                "{{courier1_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set All Offline - Courier 2",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"offline\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier2_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers",
+                "{{courier2_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set All Offline - Courier 3",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"offline\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers/{{courier3_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers",
+                "{{courier3_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('order3_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customer_name\": \"\\u041a\\u043b\\u0438\\u0435\\u043d\\u0442 3\", \"customer_phone\": \"+79993333333\", \"delivery_address\": \"\\u041c\\u043e\\u0441\\u043a\\u0432\\u0430, \\u0443\\u043b. \\u0422\\u0435\\u0441\\u0442\\u043e\\u0432\\u0430\\u044f, 3\", \"items\": [{\"name\": \"\\u0421\\u0443\\u0448\\u0438\", \"quantity\": 1, \"price\": 1200}]}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Try Auto-Assign (No Couriers)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success false', () => pm.expect(pm.response.json().success).to.be.false);",
+                  "pm.test('No couriers msg', () => pm.expect(pm.response.json().message).to.include('No available'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order3_id}}/auto-assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order3_id}}",
+                "auto-assign"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. View Results",
+      "item": [
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Couriers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/couriers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "couriers"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
