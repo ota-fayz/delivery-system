@@ -1,0 +1,482 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Delivery System - Promo Codes API",
+    "description": "API коллекция для тестирования системы промокодов (правильный порядок)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "promo_code_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Создание промокодов",
+      "item": [
+        {
+          "name": "1.1 Создать WELCOME100 (100₽ скидка)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('promo_code_id', jsonData.id);",
+                  "    console.log('✅ WELCOME100 создан. ID: ' + jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WELCOME100\",\n  \"discount_type\": \"fixed_amount\",\n  \"discount_value\": 100,\n  \"valid_from\": \"2024-01-01T00:00:00Z\",\n  \"valid_until\": \"2027-12-31T23:59:59Z\",\n  \"usage_limit\": 100\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes"]
+            },
+            "description": "Создает промокод с фиксированной скидкой 100₽"
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Создать SALE20 (20% скидка)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SALE20\",\n  \"discount_type\": \"percentage\",\n  \"discount_value\": 20,\n  \"valid_from\": \"2024-01-01T00:00:00Z\",\n  \"valid_until\": \"2027-12-31T23:59:59Z\",\n  \"usage_limit\": 50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes"]
+            },
+            "description": "Создает промокод с процентной скидкой 20%"
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Создать FREEDEL (бесплатная доставка)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FREEDEL\",\n  \"discount_type\": \"free_delivery\",\n  \"discount_value\": 0,\n  \"valid_from\": \"2024-01-01T00:00:00Z\",\n  \"valid_until\": \"2027-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes"]
+            },
+            "description": "Создает промокод для бесплатной доставки"
+          },
+          "response": []
+        }
+      ],
+      "description": "Шаг 1: Создаем все промокоды перед использованием"
+    },
+    {
+      "name": "2. Просмотр промокодов",
+      "item": [
+        {
+          "name": "2.1 Получить все промокоды",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "offset", "value": "0" }
+              ]
+            },
+            "description": "Проверяем что все 3 промокода созданы"
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Получить активные промокоды",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes?is_active=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes"],
+              "query": [{ "key": "is_active", "value": "true" }]
+            },
+            "description": "Фильтруем только активные промокоды"
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Получить промокод по ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes/{{promo_code_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes", "{{promo_code_id}}"]
+            },
+            "description": "Получаем детали конкретного промокода"
+          },
+          "response": []
+        }
+      ],
+      "description": "Шаг 2: Проверяем созданные промокоды"
+    },
+    {
+      "name": "3. Валидация промокодов",
+      "item": [
+        {
+          "name": "3.1 Валидировать WELCOME100 (500₽ → 400₽)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WELCOME100\",\n  \"order_amount\": 500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes/validate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes", "validate"]
+            },
+            "description": "Проверяем: 500₽ - 100₽ = 400₽"
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Валидировать SALE20 (1000₽ → 800₽)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SALE20\",\n  \"order_amount\": 1000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes/validate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes", "validate"]
+            },
+            "description": "Проверяем: 1000₽ - 20% (200₽) = 800₽"
+          },
+          "response": []
+        }
+      ],
+      "description": "Шаг 3: Валидируем промокоды перед использованием"
+    },
+    {
+      "name": "4. Создание заказов с промокодами",
+      "item": [
+        {
+          "name": "4.1 Заказ с WELCOME100 (800₽ → 700₽)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('order_id', jsonData.id);",
+                  "    console.log('✅ Заказ создан');",
+                  "    console.log('Оригинал: ' + jsonData.original_amount + '₽');",
+                  "    console.log('Скидка: -' + jsonData.discount_amount + '₽');",
+                  "    console.log('Итого: ' + jsonData.total_amount + '₽');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Иван Иванов\",\n  \"customer_phone\": \"+79001234567\",\n  \"delivery_address\": \"ул. Пушкина, д. 10, кв. 5\",\n  \"promo_code\": \"WELCOME100\",\n  \"items\": [\n    {\"name\": \"Пицца Маргарита\", \"quantity\": 2, \"price\": 350},\n    {\"name\": \"Кола 0.5л\", \"quantity\": 2, \"price\": 50}\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "2×350₽ + 2×50₽ = 800₽ - 100₽ = 700₽"
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 Заказ с SALE20 (990₽ → 792₽)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Мария Петрова\",\n  \"customer_phone\": \"+79009876543\",\n  \"delivery_address\": \"пр. Ленина, д. 25\",\n  \"promo_code\": \"SALE20\",\n  \"items\": [\n    {\"name\": \"Бургер\", \"quantity\": 3, \"price\": 250},\n    {\"name\": \"Картофель фри\", \"quantity\": 2, \"price\": 120}\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "3×250₽ + 2×120₽ = 990₽ - 20% (198₽) = 792₽"
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 Заказ БЕЗ промокода (890₽)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Петр Сидоров\",\n  \"customer_phone\": \"+79005555555\",\n  \"delivery_address\": \"ул. Гагарина, д. 1\",\n  \"items\": [\n    {\"name\": \"Суши сет\", \"quantity\": 1, \"price\": 890}\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "Заказ без промокода для сравнения"
+          },
+          "response": []
+        }
+      ],
+      "description": "Шаг 4: ВАЖНО! Создаем заказы ДО деактивации промокодов"
+    },
+    {
+      "name": "5. Просмотр заказов",
+      "item": [
+        {
+          "name": "5.1 Получить заказ по ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}"]
+            },
+            "description": "Проверяем детали последнего созданного заказа"
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 Получить все заказы",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders?limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"],
+              "query": [{ "key": "limit", "value": "20" }]
+            },
+            "description": "Видим все заказы с промокодами и без"
+          },
+          "response": []
+        }
+      ],
+      "description": "Шаг 5: Проверяем созданные заказы"
+    },
+    {
+      "name": "6. Тестирование ошибок",
+      "item": [
+        {
+          "name": "6.1 ❌ Несуществующий промокод",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Тест Ошибка\",\n  \"customer_phone\": \"+79001111111\",\n  \"delivery_address\": \"Тестовая, 1\",\n  \"promo_code\": \"INVALID123\",\n  \"items\": [{\"name\": \"Товар\", \"quantity\": 1, \"price\": 100}]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "Ожидается ошибка: промокод не найден"
+          },
+          "response": []
+        },
+        {
+          "name": "6.2 ❌ Дубликат промокода",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WELCOME100\",\n  \"discount_type\": \"fixed_amount\",\n  \"discount_value\": 50,\n  \"valid_from\": \"2024-01-01T00:00:00Z\",\n  \"valid_until\": \"2027-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes"]
+            },
+            "description": "Ожидается ошибка 409: промокод уже существует"
+          },
+          "response": []
+        },
+        {
+          "name": "6.3 Создать истекший промокод EXPIRED",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"EXPIRED\",\n  \"discount_type\": \"fixed_amount\",\n  \"discount_value\": 50,\n  \"valid_from\": \"2020-01-01T00:00:00Z\",\n  \"valid_until\": \"2020-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes"]
+            },
+            "description": "Создаем истекший промокод для теста"
+          },
+          "response": []
+        },
+        {
+          "name": "6.4 ❌ Использовать истекший промокод",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"EXPIRED\",\n  \"order_amount\": 500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes/validate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes", "validate"]
+            },
+            "description": "Ожидается ошибка: срок действия истек"
+          },
+          "response": []
+        }
+      ],
+      "description": "Шаг 6: Проверяем обработку ошибок"
+    },
+    {
+      "name": "7. Управление промокодами (ФИНАЛ)",
+      "item": [
+        {
+          "name": "7.1 Обновить промокод (изменить скидку)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discount_value\": 150,\n  \"usage_limit\": 200\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes/{{promo_code_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes", "{{promo_code_id}}"]
+            },
+            "description": "Изменяем параметры промокода (опционально)"
+          },
+          "response": []
+        },
+        {
+          "name": "7.2 Деактивировать промокод",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes/{{promo_code_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes", "{{promo_code_id}}"]
+            },
+            "description": "⚠️ Деактивируем промокод (делать В КОНЦЕ!)"
+          },
+          "response": []
+        },
+        {
+          "name": "7.3 Удалить промокод",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/promo-codes/{{promo_code_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "promo-codes", "{{promo_code_id}}"]
+            },
+            "description": "⚠️ Удаляем промокод (делать В КОНЦЕ!)"
+          },
+          "response": []
+        },
+        {
+          "name": "7.4 ❌ Попытка использовать деактивированный",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Тест\",\n  \"customer_phone\": \"+79002222222\",\n  \"delivery_address\": \"Тестовая, 2\",\n  \"promo_code\": \"WELCOME100\",\n  \"items\": [{\"name\": \"Товар\", \"quantity\": 1, \"price\": 500}]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "Ожидается ошибка: промокод не активен"
+          },
+          "response": []
+        }
+      ],
+      "description": "Шаг 7: Обновление/удаление (ТОЛЬКО ПОСЛЕ создания заказов!)"
+    },
+    {
+      "name": "8. Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Проверка работоспособности сервера"
+          },
+          "response": []
+        }
+      ],
+      "description": "Проверка статуса сервера"
+    }
+  ]
+}

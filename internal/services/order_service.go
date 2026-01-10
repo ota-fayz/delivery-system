@@ -14,15 +14,17 @@ import (
 
 // OrderService представляет сервис для работы с заказами
 type OrderService struct {
-	db  *database.DB
-	log *logger.Logger
+	db               *database.DB
+	log              *logger.Logger
+	promoCodeService *PromoCodeService
 }
 
 // NewOrderService создает новый экземпляр сервиса заказов
-func NewOrderService(db *database.DB, log *logger.Logger) *OrderService {
+func NewOrderService(db *database.DB, log *logger.Logger, promoCodeService *PromoCodeService) *OrderService {
 	return &OrderService{
-		db:  db,
-		log: log,
+		db:               db,
+		log:              log,
+		promoCodeService: promoCodeService,
 	}
 }
 
@@ -35,9 +37,46 @@ func (s *OrderService) CreateOrder(req *models.CreateOrderRequest) (*models.Orde
 	defer tx.Rollback()
 
 	// Расчет общей суммы заказа
-	var totalAmount float64
+	var originalAmount float64
 	for _, item := range req.Items {
-		totalAmount += item.Price * float64(item.Quantity)
+		originalAmount += item.Price * float64(item.Quantity)
+	}
+
+	// Инициализация переменных для промокода
+	var discountAmount float64 = 0
+	var promoCode *string = nil
+	totalAmount := originalAmount
+
+	// Применение промокода, если он указан
+	if req.PromoCode != nil && *req.PromoCode != "" {
+		// Валидация промокода
+		validationResult, err := s.promoCodeService.ValidatePromoCode(&models.ValidatePromoCodeRequest{
+			Code:        *req.PromoCode,
+			OrderAmount: originalAmount,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate promo code: %w", err)
+		}
+
+		if !validationResult.Valid {
+			return nil, fmt.Errorf("invalid promo code: %s", validationResult.Message)
+		}
+
+		// Применение промокода (увеличение счетчика использований)
+		if err := s.promoCodeService.ApplyPromoCode(*req.PromoCode); err != nil {
+			return nil, fmt.Errorf("failed to apply promo code: %w", err)
+		}
+
+		discountAmount = validationResult.DiscountAmount
+		totalAmount = validationResult.FinalAmount
+		promoCode = req.PromoCode
+
+		s.log.WithFields(map[string]interface{}{
+			"promo_code":      *promoCode,
+			"discount_amount": discountAmount,
+			"original_amount": originalAmount,
+			"final_amount":    totalAmount,
+		}).Info("Promo code applied to order")
 	}
 
 	// Создание заказа
@@ -47,18 +86,21 @@ func (s *OrderService) CreateOrder(req *models.CreateOrderRequest) (*models.Orde
 		CustomerName:    req.CustomerName,
 		CustomerPhone:   req.CustomerPhone,
 		DeliveryAddress: req.DeliveryAddress,
+		OriginalAmount:  originalAmount,
+		DiscountAmount:  discountAmount,
 		TotalAmount:     totalAmount,
+		PromoCode:       promoCode,
 		Status:          models.OrderStatusCreated,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
 
 	query := `
-		INSERT INTO orders (id, customer_name, customer_phone, delivery_address, total_amount, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO orders (id, customer_name, customer_phone, delivery_address, original_amount, discount_amount, total_amount, promo_code, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 	_, err = tx.Exec(query, order.ID, order.CustomerName, order.CustomerPhone,
-		order.DeliveryAddress, order.TotalAmount, order.Status, order.CreatedAt, order.UpdatedAt)
+		order.DeliveryAddress, order.OriginalAmount, order.DiscountAmount, order.TotalAmount, order.PromoCode, order.Status, order.CreatedAt, order.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
@@ -89,9 +131,11 @@ func (s *OrderService) CreateOrder(req *models.CreateOrderRequest) (*models.Orde
 	}
 
 	s.log.WithFields(map[string]interface{}{
-		"order_id":      order.ID,
-		"customer_name": order.CustomerName,
-		"total_amount":  order.TotalAmount,
+		"order_id":        order.ID,
+		"customer_name":   order.CustomerName,
+		"original_amount": order.OriginalAmount,
+		"discount_amount": order.DiscountAmount,
+		"total_amount":    order.TotalAmount,
 	}).Info("Order created successfully")
 
 	return order, nil
@@ -102,16 +146,17 @@ func (s *OrderService) GetOrder(orderID uuid.UUID) (*models.Order, error) {
 	order := &models.Order{}
 
 	query := `
-		SELECT id, customer_name, customer_phone, delivery_address, total_amount, 
-		       status, courier_id, created_at, updated_at, delivered_at
-		FROM orders 
+		SELECT id, customer_name, customer_phone, delivery_address, original_amount,
+		       discount_amount, total_amount, promo_code, status, courier_id,
+		       created_at, updated_at, delivered_at
+		FROM orders
 		WHERE id = $1
-	`
+`
 
 	err := s.db.QueryRow(query, orderID).Scan(
 		&order.ID, &order.CustomerName, &order.CustomerPhone, &order.DeliveryAddress,
-		&order.TotalAmount, &order.Status, &order.CourierID, &order.CreatedAt,
-		&order.UpdatedAt, &order.DeliveredAt,
+		&order.OriginalAmount, &order.DiscountAmount, &order.TotalAmount, &order.PromoCode,
+		&order.Status, &order.CourierID, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -147,7 +192,7 @@ func (s *OrderService) GetOrder(orderID uuid.UUID) (*models.Order, error) {
 // UpdateOrderStatus обновляет статус заказа
 func (s *OrderService) UpdateOrderStatus(orderID uuid.UUID, req *models.UpdateOrderStatusRequest) error {
 	query := `
-		UPDATE orders 
+		UPDATE orders
 		SET status = $1, courier_id = $2, updated_at = $3
 	`
 	args := []interface{}{req.Status, req.CourierID, time.Now()}
@@ -189,11 +234,12 @@ func (s *OrderService) UpdateOrderStatus(orderID uuid.UUID, req *models.UpdateOr
 // GetOrders получает список заказов с фильтрацией
 func (s *OrderService) GetOrders(status *models.OrderStatus, courierID *uuid.UUID, limit, offset int) ([]*models.Order, error) {
 	query := `
-		SELECT id, customer_name, customer_phone, delivery_address, total_amount, 
-		       status, courier_id, created_at, updated_at, delivered_at
-		FROM orders 
+		SELECT id, customer_name, customer_phone, delivery_address, original_amount,
+		       discount_amount, total_amount, promo_code, status, courier_id,
+		       created_at, updated_at, delivered_at
+		FROM orders
 		WHERE 1=1
-	`
+`
 	args := []interface{}{}
 	argIndex := 1
 
@@ -232,8 +278,9 @@ func (s *OrderService) GetOrders(status *models.OrderStatus, courierID *uuid.UUI
 	for rows.Next() {
 		order := &models.Order{}
 		if err := rows.Scan(&order.ID, &order.CustomerName, &order.CustomerPhone,
-			&order.DeliveryAddress, &order.TotalAmount, &order.Status,
-			&order.CourierID, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt); err != nil {
+			&order.DeliveryAddress, &order.OriginalAmount, &order.DiscountAmount,
+			&order.TotalAmount, &order.PromoCode, &order.Status, &order.CourierID,
+			&order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt); err != nil {
 			return nil, fmt.Errorf("failed to scan order: %w", err)
 		}
 		orders = append(orders, order)

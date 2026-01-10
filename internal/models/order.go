@@ -26,13 +26,17 @@ type Order struct {
 	CustomerPhone   string      `json:"customer_phone" db:"customer_phone"`
 	DeliveryAddress string      `json:"delivery_address" db:"delivery_address"`
 	Items           []OrderItem `json:"items"`
+	OriginalAmount  float64     `json:"original_amount" db:"original_amount"`
+	DiscountAmount  float64     `json:"discount_amount" db:"discount_amount"`
 	TotalAmount     float64     `json:"total_amount" db:"total_amount"`
+	PromoCode       *string     `json:"promo_code,omitempty" db:"promo_code"`
 	Status          OrderStatus `json:"status" db:"status"`
 	CourierID       *uuid.UUID  `json:"courier_id,omitempty" db:"courier_id"`
 	CreatedAt       time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time   `json:"updated_at" db:"updated_at"`
 	DeliveredAt     *time.Time  `json:"delivered_at,omitempty" db:"delivered_at"`
 }
+
 
 // OrderItem представляет товар в заказе
 type OrderItem struct {
@@ -49,6 +53,7 @@ type CreateOrderRequest struct {
 	CustomerPhone   string                   `json:"customer_phone"`
 	DeliveryAddress string                   `json:"delivery_address"`
 	Items           []CreateOrderItemRequest `json:"items"`
+	PromoCode       *string                  `json:"promo_code,omitempty"`
 }
 
 // CreateOrderItemRequest представляет запрос на создание товара в заказе

@@ -57,12 +57,14 @@ func main() {
 	defer consumer.Stop()
 
 	// Инициализация сервисов
-	orderService := services.NewOrderService(db, log)
+	promoCodeService := services.NewPromoCodeService(db, log)
+	orderService := services.NewOrderService(db, log, promoCodeService)
 	courierService := services.NewCourierService(db, log)
 
 	// Инициализация handlers
 	orderHandler := handlers.NewOrderHandler(orderService, producer, redisClient, log)
 	courierHandler := handlers.NewCourierHandler(courierService, producer, redisClient, log)
+	promoCodeHandler := handlers.NewPromoCodeHandler(promoCodeService, log)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
 
 	// Регистрация обработчиков событий Kafka
@@ -74,7 +76,7 @@ func main() {
 	}
 
 	// Настройка HTTP роутера
-	mux := setupRoutes(orderHandler, courierHandler, healthHandler)
+	mux := setupRoutes(orderHandler, courierHandler, promoCodeHandler, healthHandler)
 
 	// Создание HTTP сервера
 	server := &http.Server{
@@ -111,7 +113,7 @@ func main() {
 }
 
 // setupRoutes настраивает маршруты HTTP сервера
-func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
+func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, promoCodeHandler *handlers.PromoCodeHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
@@ -127,6 +129,11 @@ func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.C
 	mux.HandleFunc("/api/couriers", corsMiddleware(handleCouriersRoute(courierHandler)))
 	mux.HandleFunc("/api/couriers/", corsMiddleware(handleCourierRoute(courierHandler)))
 	mux.HandleFunc("/api/couriers/available", corsMiddleware(courierHandler.GetAvailableCouriers))
+
+	// Promo code endpoints
+	mux.HandleFunc("/api/promo-codes", corsMiddleware(handlePromoCodesRoute(promoCodeHandler)))
+	mux.HandleFunc("/api/promo-codes/", corsMiddleware(handlePromoCodeRoute(promoCodeHandler)))
+	mux.HandleFunc("/api/promo-codes/validate", corsMiddleware(promoCodeHandler.ValidatePromoCode))
 
 	return mux
 }
@@ -244,4 +251,34 @@ func writeErrorResponse(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	fmt.Fprintf(w, `{"error": "%s", "message": "%s"}`, http.StatusText(statusCode), message)
+}
+
+// handlePromoCodesRoute обрабатывает маршруты для коллекции промокодов
+func handlePromoCodesRoute(handler *handlers.PromoCodeHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handler.GetAllPromoCodes(w, r)
+		case http.MethodPost:
+			handler.CreatePromoCode(w, r)
+		default:
+			writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		}
+	}
+}
+
+// handlePromoCodeRoute обрабатывает маршруты для отдельного промокода
+func handlePromoCodeRoute(handler *handlers.PromoCodeHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handler.GetPromoCode(w, r)
+		case http.MethodPut:
+			handler.UpdatePromoCode(w, r)
+		case http.MethodDelete:
+			handler.DeletePromoCode(w, r)
+		default:
+			writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		}
+	}
 }
