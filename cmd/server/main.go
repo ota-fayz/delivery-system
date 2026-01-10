@@ -59,11 +59,13 @@ func main() {
 	// Инициализация сервисов
 	orderService := services.NewOrderService(db, log)
 	courierService := services.NewCourierService(db, log)
+	analyticsService := services.NewAnalyticsService(db, redisClient, log)
 
 	// Инициализация handlers
 	orderHandler := handlers.NewOrderHandler(orderService, producer, redisClient, log)
 	courierHandler := handlers.NewCourierHandler(courierService, producer, redisClient, log)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
+	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService, log)
 
 	// Регистрация обработчиков событий Kafka
 	registerEventHandlers(consumer, log)
@@ -74,7 +76,7 @@ func main() {
 	}
 
 	// Настройка HTTP роутера
-	mux := setupRoutes(orderHandler, courierHandler, healthHandler)
+	mux := setupRoutes(orderHandler, courierHandler, analyticsHandler, healthHandler)
 
 	// Создание HTTP сервера
 	server := &http.Server{
@@ -111,7 +113,7 @@ func main() {
 }
 
 // setupRoutes настраивает маршруты HTTP сервера
-func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
+func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, analyticsHandler *handlers.AnalyticsHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
@@ -127,6 +129,17 @@ func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.C
 	mux.HandleFunc("/api/couriers", corsMiddleware(handleCouriersRoute(courierHandler)))
 	mux.HandleFunc("/api/couriers/", corsMiddleware(handleCourierRoute(courierHandler)))
 	mux.HandleFunc("/api/couriers/available", corsMiddleware(courierHandler.GetAvailableCouriers))
+
+	// Analytics endpoints
+	mux.HandleFunc("/api/analytics", corsMiddleware(analyticsHandler.GetFullAnalytics))
+	mux.HandleFunc("/api/analytics/overview", corsMiddleware(analyticsHandler.GetOverview))
+	mux.HandleFunc("/api/analytics/revenue", corsMiddleware(analyticsHandler.GetRevenue))
+	mux.HandleFunc("/api/analytics/orders", corsMiddleware(analyticsHandler.GetOrders))
+	mux.HandleFunc("/api/analytics/couriers/top", corsMiddleware(analyticsHandler.GetTopCouriers))
+	mux.HandleFunc("/api/analytics/items/popular", corsMiddleware(analyticsHandler.GetPopularItems))
+	mux.HandleFunc("/api/analytics/promo-codes", corsMiddleware(analyticsHandler.GetPromoCodeStats))
+	mux.HandleFunc("/api/analytics/timeseries", corsMiddleware(analyticsHandler.GetTimeSeries))
+	mux.HandleFunc("/api/analytics/export/csv", corsMiddleware(analyticsHandler.ExportCSV))
 
 	return mux
 }

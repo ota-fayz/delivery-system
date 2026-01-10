@@ -1,0 +1,822 @@
+{
+  "info": {
+    "_postman_id": "analytics-api-collection",
+    "name": "Delivery System - Analytics API",
+    "description": "Коллекция для тестирования системы аналитики и бизнес-отчетности",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "courier_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order1_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order2_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order3_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Setup Test Data",
+      "description": "Создание тестовых данных для аналитики",
+      "item": [
+        {
+          "name": "Create Test Courier 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('courier_id', jsonData.id);",
+                  "    pm.environment.set('courier1_id', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Иван Курьеров\",\n    \"phone\": \"+79991234567\",\n    \"vehicle_type\": \"car\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Test Courier 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('courier2_id', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Петр Доставкин\",\n    \"phone\": \"+79997654321\",\n    \"vehicle_type\": \"bike\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/couriers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "couriers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Test Order 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('order_id', jsonData.id);",
+                  "    pm.collectionVariables.set('order1_id', jsonData.id);",
+                  "    pm.environment.set('order1_id', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customer_name\": \"Алексей Тестовый\",\n    \"customer_phone\": \"+79991111111\",\n    \"pickup_address\": \"ул. Ленина, 10\",\n    \"delivery_address\": \"пр. Мира, 25\",\n    \"items\": [\n        {\n            \"name\": \"Пицца Маргарита\",\n            \"quantity\": 2,\n            \"price\": 450.00\n        },\n        {\n            \"name\": \"Кола 0.5л\",\n            \"quantity\": 1,\n            \"price\": 80.00\n        }\n    ],\n    \"total_amount\": 980.00,\n    \"delivery_fee\": 150.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Test Order 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('order2_id', jsonData.id);",
+                  "    pm.environment.set('order2_id', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customer_name\": \"Мария Покупателева\",\n    \"customer_phone\": \"+79992222222\",\n    \"pickup_address\": \"ул. Пушкина, 5\",\n    \"delivery_address\": \"ул. Гоголя, 15\",\n    \"items\": [\n        {\n            \"name\": \"Бургер Чизбургер\",\n            \"quantity\": 3,\n            \"price\": 350.00\n        },\n        {\n            \"name\": \"Картофель фри\",\n            \"quantity\": 2,\n            \"price\": 150.00\n        }\n    ],\n    \"total_amount\": 1350.00,\n    \"delivery_fee\": 200.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Test Order 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('order3_id', jsonData.id);",
+                  "    pm.environment.set('order3_id', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customer_name\": \"Дмитрий Заказов\",\n    \"customer_phone\": \"+79993333333\",\n    \"pickup_address\": \"ул. Чехова, 20\",\n    \"delivery_address\": \"пр. Победы, 100\",\n    \"items\": [\n        {\n            \"name\": \"Суши сет\",\n            \"quantity\": 1,\n            \"price\": 1200.00\n        },\n        {\n            \"name\": \"Васаби\",\n            \"quantity\": 2,\n            \"price\": 50.00\n        },\n        {\n            \"name\": \"Имбирь\",\n            \"quantity\": 1,\n            \"price\": 30.00\n        }\n    ],\n    \"total_amount\": 1330.00,\n    \"delivery_fee\": 180.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order 1 to Delivered",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"delivered\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order1_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order1_id}}", "status"]
+            },
+            "description": "Обновить статус заказа 1 на 'delivered'"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order 2 to Delivered",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"delivered\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order2_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order2_id}}", "status"]
+            },
+            "description": "Обновить статус заказа 2 на 'delivered'"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order 3 to Delivered",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"delivered\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order3_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order3_id}}", "status"]
+            },
+            "description": "Обновить статус заказа 3 на 'delivered'"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics - Overview",
+      "item": [
+        {
+          "name": "Get Overview Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/overview",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "overview"]
+            },
+            "description": "Получить общую сводку метрик системы:\n- Общее количество заказов\n- Общая выручка\n- Средний чек\n- Количество курьеров\n- Активных курьеров\n- Завершенные/отмененные/ожидающие заказы"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics - Revenue",
+      "item": [
+        {
+          "name": "Get Revenue Metrics - Day",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/revenue?period=day",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "revenue"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "day",
+                  "description": "Период: day, week, month, year"
+                }
+              ]
+            },
+            "description": "Метрики выручки за день (только delivered заказы)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Revenue Metrics - Week",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/revenue?period=week",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "revenue"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "week"
+                }
+              ]
+            },
+            "description": "Метрики выручки за неделю"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Revenue Metrics - Month",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/revenue?period=month",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "revenue"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                }
+              ]
+            },
+            "description": "Метрики выручки за месяц"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Revenue Metrics - Custom Date Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/revenue?start_date=2025-01-01&end_date=2025-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "revenue"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2025-01-01",
+                  "description": "Дата начала (YYYY-MM-DD)"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2025-12-31",
+                  "description": "Дата окончания (YYYY-MM-DD)"
+                }
+              ]
+            },
+            "description": "Метрики выручки за произвольный период"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics - Orders",
+      "item": [
+        {
+          "name": "Get Order Metrics - Day",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/orders?period=day",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "orders"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "day"
+                }
+              ]
+            },
+            "description": "Метрики заказов за день:\n- Общее количество\n- Завершенные\n- Отмененные\n- В доставке\n- Среднее время доставки"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order Metrics - Week",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/orders?period=week",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "orders"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "week"
+                }
+              ]
+            },
+            "description": "Метрики заказов за неделю"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order Metrics - Month",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/orders?period=month",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "orders"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                }
+              ]
+            },
+            "description": "Метрики заказов за месяц"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics - Couriers",
+      "item": [
+        {
+          "name": "Get Top Couriers - Default (10)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/couriers/top?period=month",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "couriers", "top"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                }
+              ]
+            },
+            "description": "Топ-10 курьеров по количеству доставок"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Top 5 Couriers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/couriers/top?period=week&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "couriers", "top"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "week"
+                },
+                {
+                  "key": "limit",
+                  "value": "5",
+                  "description": "Количество топ-курьеров"
+                }
+              ]
+            },
+            "description": "Топ-5 курьеров за неделю"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics - Popular Items",
+      "item": [
+        {
+          "name": "Get Popular Items - Top 10",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/items/popular?period=month&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "items", "popular"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Топ-10 популярных товаров за месяц:\n- Название товара\n- Количество заказов\n- Общая выручка"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Popular Items - Top 20",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/items/popular?period=week&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "items", "popular"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "week"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Топ-20 популярных товаров за неделю"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics - Time Series",
+      "item": [
+        {
+          "name": "Get Time Series - Week",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/timeseries?period=week",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "timeseries"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "week"
+                }
+              ]
+            },
+            "description": "Временной ряд выручки за неделю (по дням)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Time Series - Month",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/timeseries?period=month",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "timeseries"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                }
+              ]
+            },
+            "description": "Временной ряд выручки за месяц"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Time Series - Custom Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/timeseries?start_date=2025-01-01&end_date=2025-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "timeseries"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2025-03-31"
+                }
+              ]
+            },
+            "description": "Временной ряд за произвольный период"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics - Full Report",
+      "item": [
+        {
+          "name": "Get Full Analytics - Day",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics?period=day&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "day"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Полная аналитика за день:\n- Overview\n- Revenue\n- Orders\n- Top Couriers\n- Popular Items\n- Time Series"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Full Analytics - Week",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics?period=week&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "week"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Полная аналитика за неделю"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Full Analytics - Month",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics?period=month&limit=15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                },
+                {
+                  "key": "limit",
+                  "value": "15"
+                }
+              ]
+            },
+            "description": "Полная аналитика за месяц"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics - Export",
+      "item": [
+        {
+          "name": "Export Analytics to CSV - Week",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/export/csv?period=week",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "export", "csv"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "week"
+                }
+              ]
+            },
+            "description": "Экспорт аналитики в CSV формат за неделю"
+          },
+          "response": []
+        },
+        {
+          "name": "Export Analytics to CSV - Month",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/export/csv?period=month&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "export", "csv"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Экспорт аналитики в CSV формат за месяц"
+          },
+          "response": []
+        },
+        {
+          "name": "Export Analytics to CSV - Custom Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/export/csv?start_date=2025-01-01&end_date=2025-12-31&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "export", "csv"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2025-12-31"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Экспорт аналитики за произвольный период"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
