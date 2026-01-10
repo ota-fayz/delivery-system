@@ -65,3 +65,39 @@ type LocationUpdatedEvent struct {
 	Lon       float64   `json:"lon"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+// Дополнительные типы событий для Event Sourcing
+const (
+	EventTypeOrderAccepted   EventType = "order.accepted"
+	EventTypeOrderInDelivery EventType = "order.in_delivery"
+	EventTypeOrderDelivered  EventType = "order.delivered"
+	EventTypeOrderCancelled  EventType = "order.cancelled"
+)
+
+// OrderEvent - структура события для Event Store (с версионированием)
+type OrderEvent struct {
+	EventID   string                 `json:"event_id"`   // UUID события
+	EventType EventType              `json:"event_type"` // Тип события
+	OrderID   string                 `json:"order_id"`   // ID заказа (UUID string)
+	Timestamp time.Time              `json:"timestamp"`  // Время события
+	Version   int                    `json:"version"`    // Версия события (1, 2, 3...)
+	Data      map[string]interface{} `json:"data"`       // Данные события (JSON)
+	Metadata  map[string]interface{} `json:"metadata"`   // Метаданные (user_id, ip, etc.)
+}
+
+// OrderSnapshot - снимок состояния заказа (каждые 100 событий)
+type OrderSnapshot struct {
+	OrderID   string    `json:"order_id"` // ID заказа (UUID string)
+	Version   int       `json:"version"`  // Версия, на которой сделан snapshot
+	State     Order     `json:"state"`    // Полное состояние заказа
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// EventTimeline - элемент временной шкалы для UI
+type EventTimeline struct {
+	EventType   EventType   `json:"event_type"`
+	Timestamp   time.Time   `json:"timestamp"`
+	Description string      `json:"description"` // Человекочитаемое описание
+	Actor       string      `json:"actor"`       // Кто совершил действие
+	Data        interface{} `json:"data,omitempty"`
+}

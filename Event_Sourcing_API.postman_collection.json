@@ -1,0 +1,389 @@
+{
+  "info": {
+    "_postman_id": "event-sourcing-api-v1",
+    "name": "Event Sourcing API - Task 7",
+    "description": "API для тестирования Event Sourcing функциональности системы доставки",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Create Order (with Event)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.collectionVariables.set(\"order_id\", jsonData.id);",
+              "    console.log(\"✅ Order ID saved: \" + jsonData.id);",
+              "    pm.environment.set(\"order_id\", jsonData.id);",
+              "} else {",
+              "    console.log(\"❌ Failed to create order\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customer_name\": \"Иван Петров\",\n  \"customer_phone\": \"+79991234567\",\n  \"delivery_address\": \"ул. Ленина, д. 15, кв. 42\",\n  \"items\": [\n    {\n      \"name\": \"Пицца Маргарита\",\n      \"quantity\": 2,\n      \"price\": 500.0\n    },\n    {\n      \"name\": \"Coca-Cola 0.5L\",\n      \"quantity\": 2,\n      \"price\": 100.0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/orders",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders"]
+        },
+        "description": "Создает новый заказ и автоматически записывает событие OrderCreated в Event Store. ID заказа сохраняется в переменную {{order_id}}"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Update Order Status - Accepted",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    console.log(\"✅ Status updated to 'accepted'\");",
+              "} else {",
+              "    console.log(\"❌ Failed to update status\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"accepted\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/orders/{{order_id}}/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "{{order_id}}", "status"]
+        },
+        "description": "Обновляет статус заказа на 'accepted' и записывает событие OrderAccepted"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Update Order Status - In Delivery",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    console.log(\"✅ Status updated to 'in_delivery'\");",
+              "} else {",
+              "    console.log(\"❌ Failed to update status\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"in_delivery\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/orders/{{order_id}}/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "{{order_id}}", "status"]
+        },
+        "description": "Обновляет статус заказа на 'in_delivery' и записывает событие OrderInDelivery"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Update Order Status - Delivered",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    console.log(\"✅ Status updated to 'delivered'\");",
+              "} else {",
+              "    console.log(\"❌ Failed to update status\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"delivered\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/orders/{{order_id}}/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "{{order_id}}", "status"]
+        },
+        "description": "Обновляет статус заказа на 'delivered' и записывает событие OrderDelivered"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Get All Order Events",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    console.log(\"✅ Events retrieved: \" + jsonData.count);",
+              "    console.log(\"Events:\");",
+              "    jsonData.events.forEach(function(event, index) {",
+              "        console.log((index + 1) + \". \" + event.event_type + \" (version \" + event.version + \")\");",
+              "    });",
+              "} else {",
+              "    console.log(\"❌ Failed to get events\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/orders/{{order_id}}/events",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "{{order_id}}", "events"]
+        },
+        "description": "Получает все события для заказа. Возвращает полную историю изменений заказа."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Get Events After Version",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    console.log(\"✅ Events after version retrieved: \" + jsonData.count);",
+              "} else {",
+              "    console.log(\"❌ Failed to get events after version\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/orders/{{order_id}}/events/1",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "{{order_id}}", "events", "1"]
+        },
+        "description": "Получает события заказа после версии 1. Полезно для получения только новых событий."
+      },
+      "response": []
+    },
+    {
+      "name": "7. Replay Order State",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    console.log(\"✅ Order state replayed successfully\");",
+              "    console.log(\"Status: \" + jsonData.order.status);",
+              "    console.log(\"Customer: \" + jsonData.order.customer_name);",
+              "} else {",
+              "    console.log(\"❌ Failed to replay order\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/orders/{{order_id}}/replay",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "{{order_id}}", "replay"]
+        },
+        "description": "Восстанавливает состояние заказа из потока событий. Демонстрирует магию Event Sourcing!"
+      },
+      "response": []
+    },
+    {
+      "name": "8. Get Order Timeline",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    console.log(\"✅ Timeline retrieved: \" + jsonData.count + \" events\");",
+              "    console.log(\"Timeline:\");",
+              "    jsonData.timeline.forEach(function(item, index) {",
+              "        console.log((index + 1) + \". \" + item.description + \" (\" + item.actor + \")\");",
+              "    });",
+              "} else {",
+              "    console.log(\"❌ Failed to get timeline\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/orders/{{order_id}}/timeline",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "{{order_id}}", "timeline"]
+        },
+        "description": "Получает временную шкалу заказа с человекочитаемыми описаниями событий"
+      },
+      "response": []
+    },
+    {
+      "name": "9. Get Order by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    console.log(\"✅ Order retrieved\");",
+              "    console.log(\"ID: \" + jsonData.id);",
+              "    console.log(\"Status: \" + jsonData.status);",
+              "} else {",
+              "    console.log(\"❌ Failed to get order\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/orders/{{order_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "{{order_id}}"]
+        },
+        "description": "Получает заказ по ID (для сравнения с replay)"
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    console.log(\"✅ Server is healthy\");",
+              "} else {",
+              "    console.log(\"❌ Server health check failed\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Проверка работоспособности сервера"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Проверка наличия order_id перед запросом",
+          "if (pm.request.url.path.includes('{{order_id}}') && !pm.collectionVariables.get('order_id')) {",
+          "    console.warn('⚠️  order_id not set! Please run \"1. Create Order\" first.');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

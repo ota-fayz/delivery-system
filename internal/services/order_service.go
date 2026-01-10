@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -14,15 +15,17 @@ import (
 
 // OrderService представляет сервис для работы с заказами
 type OrderService struct {
-	db  *database.DB
-	log *logger.Logger
+	db         *database.DB
+	log        *logger.Logger
+	eventStore *EventStore // Event Store для Event Sourcing
 }
 
 // NewOrderService создает новый экземпляр сервиса заказов
-func NewOrderService(db *database.DB, log *logger.Logger) *OrderService {
+func NewOrderService(db *database.DB, log *logger.Logger, eventStore *EventStore) *OrderService {
 	return &OrderService{
-		db:  db,
-		log: log,
+		db:         db,
+		log:        log,
+		eventStore: eventStore,
 	}
 }
 
@@ -88,6 +91,29 @@ func (s *OrderService) CreateOrder(req *models.CreateOrderRequest) (*models.Orde
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	if s.eventStore != nil {
+		event := models.OrderEvent{
+			EventType: models.EventTypeOrderCreated,
+			OrderID:   order.ID.String(), // UUID строка
+			Data: map[string]interface{}{
+				"order_id":         order.ID.String(),
+				"customer_name":    order.CustomerName,
+				"customer_phone":   order.CustomerPhone,
+				"delivery_address": order.DeliveryAddress,
+				"total_amount":     order.TotalAmount,
+			},
+			Metadata: map[string]interface{}{
+				"source": "order_service",
+			},
+		}
+
+		ctx := context.Background()
+		if err := s.eventStore.SaveEvent(ctx, event); err != nil {
+			s.log.WithError(err).Error("Failed to save order created event")
+			// Не возвращаем ошибку - заказ уже создан в БД
+		}
+	}
+
 	s.log.WithFields(map[string]interface{}{
 		"order_id":      order.ID,
 		"customer_name": order.CustomerName,
@@ -102,9 +128,9 @@ func (s *OrderService) GetOrder(orderID uuid.UUID) (*models.Order, error) {
 	order := &models.Order{}
 
 	query := `
-		SELECT id, customer_name, customer_phone, delivery_address, total_amount, 
+		SELECT id, customer_name, customer_phone, delivery_address, total_amount,
 		       status, courier_id, created_at, updated_at, delivered_at
-		FROM orders 
+		FROM orders
 		WHERE id = $1
 	`
 
@@ -147,7 +173,7 @@ func (s *OrderService) GetOrder(orderID uuid.UUID) (*models.Order, error) {
 // UpdateOrderStatus обновляет статус заказа
 func (s *OrderService) UpdateOrderStatus(orderID uuid.UUID, req *models.UpdateOrderStatusRequest) error {
 	query := `
-		UPDATE orders 
+		UPDATE orders
 		SET status = $1, courier_id = $2, updated_at = $3
 	`
 	args := []interface{}{req.Status, req.CourierID, time.Now()}
@@ -177,6 +203,48 @@ func (s *OrderService) UpdateOrderStatus(orderID uuid.UUID, req *models.UpdateOr
 		return fmt.Errorf("order not found")
 	}
 
+	if s.eventStore != nil {
+		var eventType models.EventType
+
+		switch req.Status {
+		case models.OrderStatusAccepted:
+			eventType = models.EventTypeOrderAccepted
+		case models.OrderStatusInDelivery:
+			eventType = models.EventTypeOrderInDelivery
+		case models.OrderStatusDelivered:
+			eventType = models.EventTypeOrderDelivered
+		case models.OrderStatusCancelled:
+			eventType = models.EventTypeOrderCancelled
+		default:
+			eventType = models.EventTypeOrderStatusChanged
+		}
+
+		event := models.OrderEvent{
+			EventType: eventType,
+			OrderID:   orderID.String(), // UUID строка
+			Data: map[string]interface{}{
+				"order_id":   orderID.String(),
+				"new_status": string(req.Status),
+			},
+			Metadata: map[string]interface{}{
+				"source": "order_service",
+			},
+		}
+
+		if req.CourierID != nil {
+			event.Data["courier_id"] = req.CourierID.String()
+		}
+
+		if req.Status == models.OrderStatusDelivered {
+			event.Data["delivered_at"] = time.Now().Format(time.RFC3339)
+		}
+
+		ctx := context.Background()
+		if err := s.eventStore.SaveEvent(ctx, event); err != nil {
+			s.log.WithError(err).Error("Failed to save order status event")
+		}
+	}
+
 	s.log.WithFields(map[string]interface{}{
 		"order_id":   orderID,
 		"new_status": req.Status,
@@ -189,9 +257,9 @@ func (s *OrderService) UpdateOrderStatus(orderID uuid.UUID, req *models.UpdateOr
 // GetOrders получает список заказов с фильтрацией
 func (s *OrderService) GetOrders(status *models.OrderStatus, courierID *uuid.UUID, limit, offset int) ([]*models.Order, error) {
 	query := `
-		SELECT id, customer_name, customer_phone, delivery_address, total_amount, 
+		SELECT id, customer_name, customer_phone, delivery_address, total_amount,
 		       status, courier_id, created_at, updated_at, delivered_at
-		FROM orders 
+		FROM orders
 		WHERE 1=1
 	`
 	args := []interface{}{}

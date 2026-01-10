@@ -57,13 +57,18 @@ func main() {
 	defer consumer.Stop()
 
 	// Инициализация сервисов
-	orderService := services.NewOrderService(db, log)
+	// Сначала создаем eventStore
+	eventStore := services.NewEventStore(producer, log)
+
+	// Потом создаем orderService с eventStore
+	orderService := services.NewOrderService(db, log, eventStore)
 	courierService := services.NewCourierService(db, log)
 
 	// Инициализация handlers
 	orderHandler := handlers.NewOrderHandler(orderService, producer, redisClient, log)
 	courierHandler := handlers.NewCourierHandler(courierService, producer, redisClient, log)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
+	orderEventsHandler := handlers.NewOrderEventsHandler(eventStore, log)
 
 	// Регистрация обработчиков событий Kafka
 	registerEventHandlers(consumer, log)
@@ -74,7 +79,7 @@ func main() {
 	}
 
 	// Настройка HTTP роутера
-	mux := setupRoutes(orderHandler, courierHandler, healthHandler)
+	mux := setupRoutes(orderHandler, courierHandler, healthHandler, orderEventsHandler)
 
 	// Создание HTTP сервера
 	server := &http.Server{
@@ -111,7 +116,7 @@ func main() {
 }
 
 // setupRoutes настраивает маршруты HTTP сервера
-func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler) *http.ServeMux {
+func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.CourierHandler, healthHandler *handlers.HealthHandler, orderEventsHandler *handlers.OrderEventsHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoints
@@ -121,7 +126,7 @@ func setupRoutes(orderHandler *handlers.OrderHandler, courierHandler *handlers.C
 
 	// Order endpoints
 	mux.HandleFunc("/api/orders", corsMiddleware(handleOrdersRoute(orderHandler)))
-	mux.HandleFunc("/api/orders/", corsMiddleware(handleOrderRoute(orderHandler)))
+	mux.HandleFunc("/api/orders/", corsMiddleware(handleOrderRoute(orderHandler, orderEventsHandler)))
 
 	// Courier endpoints
 	mux.HandleFunc("/api/couriers", corsMiddleware(handleCouriersRoute(courierHandler)))
@@ -146,9 +151,27 @@ func handleOrdersRoute(handler *handlers.OrderHandler) http.HandlerFunc {
 }
 
 // handleOrderRoute обрабатывает маршруты для отдельного заказа
-func handleOrderRoute(handler *handlers.OrderHandler) http.HandlerFunc {
+func handleOrderRoute(handler *handlers.OrderHandler, eventsHandler *handlers.OrderEventsHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/status") {
+		path := r.URL.Path
+
+		// Event Sourcing endpoints
+		if strings.Contains(path, "/events") {
+			// GET /api/orders/{id}/events/{version} или /api/orders/{id}/events
+			if strings.Count(path, "/") == 5 && !strings.HasSuffix(path, "/events") {
+				// /api/orders/{id}/events/{version}
+				eventsHandler.GetOrderEventsAfterVersion(w, r)
+			} else {
+				// /api/orders/{id}/events
+				eventsHandler.GetOrderEvents(w, r)
+			}
+		} else if strings.HasSuffix(path, "/replay") {
+			// POST /api/orders/{id}/replay
+			eventsHandler.ReplayOrder(w, r)
+		} else if strings.HasSuffix(path, "/timeline") {
+			// GET /api/orders/{id}/timeline
+			eventsHandler.GetOrderTimeline(w, r)
+		} else if strings.HasSuffix(path, "/status") {
 			// Обновление статуса заказа
 			if r.Method == http.MethodPut {
 				handler.UpdateOrderStatus(w, r)

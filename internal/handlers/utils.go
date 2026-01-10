@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -101,3 +102,8 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			duration)
 	}
 }
+
+// Ошибки
+var (
+	ErrInvalidPath = errors.New("invalid path format")
+)
